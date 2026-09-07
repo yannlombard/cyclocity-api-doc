@@ -2259,7 +2259,15 @@ components:
         id: { type: string, format: uuid }
         rating: { type: integer }
         order: { type: integer }
-        cdrCode: { type: string, description: Code repris dans `BikeRate.cdrCode` }
+        cdrCode:
+          type: string
+          description: |
+            Code repris tel quel dans `BikeRate.cdrCode`. Aucun libellé n'accompagne l'entrée : l'app
+            officielle n'affiche qu'une icône par code. Sept sont nommés dans son binaire —
+            `DT_DECLARED_312` éclairage, `313` roue ou pneu, `314` freins, `315` pédales, `316` guidon,
+            `317` selle, `441` autre — et au moins un huitième existe (assistance électrique), pris par
+            la branche par défaut du mapping. Prévoir un repli pour un code inconnu.
+          examples: [DT_DECLARED_313]
         isElectricBike: { type: boolean, description: Motif réservé aux vélos électriques }
 
     Transaction:

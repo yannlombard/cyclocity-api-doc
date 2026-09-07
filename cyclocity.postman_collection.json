@@ -420,7 +420,7 @@
                 }
               ]
             },
-            "description": "Motifs signalables : [{ id, rating, order, cdrCode, isElectricBike }]. Le cdrCode retenu part dans le corps de « Noter le vélo » (6. Trajets). Sans l'Accept versionné : 415/406. Route lue dans l'app Android 3.3.10, non exercée en capture."
+            "description": "Motifs signalables : [{ id, rating, order, cdrCode, isElectricBike }]. Aucun libellé n'est rendu — l'app officielle n'affiche qu'une icône par code. Codes nommés dans son binaire : DT_DECLARED_312 éclairage, 313 roue ou pneu, 314 freins, 315 pédales, 316 guidon, 317 selle, 441 autre ; au moins un huitième (assistance électrique) existe. Le cdrCode retenu part dans le corps de « Noter le vélo » (6. Trajets). Sans l'Accept versionné : 415/406. Route lue dans l'app Android 3.3.10, non exercée en capture."
           },
           "id": "cyclocity-01-11"
         }

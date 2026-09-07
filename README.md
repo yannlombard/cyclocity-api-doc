@@ -678,6 +678,20 @@ curl -s "https://api.cyclocity.fr/contracts/lyon/campaigns" -H "Authorization: T
 **`GET /cgau`** -> liste toutes les versions des CGU (`003.002` MINOR 2025-06-13 valide, `003.001` MAJOR 2025-01-01, `002.001` 2020-01-24...) ; `/cgau/{VLS|VLD|PARKING}/valid` renvoie la version valide d'un type, `.../valid/file` et `.../versions/{v}/file` le PDF.
 **`GET /locales/{locale}/proofs`** -> `[{ id, contractCode, name, tacitRenewal, ageMin?, ageMax?, blocking, modelId?, typeReference? }]`. Sur Lyon : pièce d'identité (25 ans max), attestation RSA, autorisation parentale (17 ans max, bloquante), justificatif de domicile, fiche contact, éligibilité Toodego, RIB...
 **`GET /campaigns`** -> `[{ id, name, campaignType: UNIQUE|GENERIC, promotionType: PERCENTAGE|FIX_AMOUNT, discount, genericPromoCode?: { id, value, lastUpdate }, validityStart, validityEnd?, offersIds[], friend, sponsorship }]`.
+**`GET /defect-types`** -> `[{ id, rating, order, cdrCode, isElectricBike }]`. **Aucun libellé n'est rendu** : l'app officielle n'affiche que des icônes, une par `cdrCode`. Les sept codes de son atlas d'icônes (📱, `res/drawable/ic_defect_*`), à traduire côté client :
+
+| `cdrCode`         | Icône de l'app officielle       | Sens                                                                                                                             |
+| ----------------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `DT_DECLARED_312` | `ic_defect_feu`                 | Éclairage                                                                                                                        |
+| `DT_DECLARED_313` | `ic_defect_roue`                | Roue ou pneu                                                                                                                     |
+| `DT_DECLARED_314` | `ic_defect_frein`               | Freins                                                                                                                           |
+| `DT_DECLARED_315` | `ic_defect_pedale`              | Pédales                                                                                                                          |
+| `DT_DECLARED_316` | `ic_defect_guidon`              | Guidon                                                                                                                           |
+| `DT_DECLARED_317` | `ic_defect_selle`               | Selle                                                                                                                            |
+| `DT_DECLARED_441` | `ic_defect_other`               | Autre                                                                                                                            |
+| (tout autre code) | `ic_defect_electric_assistance` | Assistance électrique — c'est la branche par défaut du mapping, donc au moins un huitième code existe, non nommé dans le binaire |
+
+Prévoir un repli pour un code inconnu : la liste vient du serveur, elle peut s'allonger sans que l'app le sache.
 
 ### 5.2 Stations et vélos
 
