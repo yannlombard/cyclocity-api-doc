@@ -19,7 +19,8 @@ info:
     (`application/vnd.{ressource}.v{n}+json`) ; sans lui, `406`/`415` ou une shape legacy.
 
     Extension `x-status` sur chaque opération : `observed` (✅ capture), `live` (✅ vérifié par requête
-    directe), `declared` (🌐 front web), `reported` (📚 Pikari0 / 🧩 VLSKit, non revérifié).
+    directe), `declared` (🌐 front web), `decompiled` (📱 lu dans les interfaces Retrofit de l'app Android
+    officielle 3.3.10, non exercé en capture), `reported` (📚 Pikari0 / 🧩 VLSKit, non revérifié).
 
     Utilisez uniquement **votre propre compte** et respectez les CGU du service. Pour les seules
     stations/disponibilités, préférez l'open data officiel (GBFS servi sans authentification).
@@ -471,6 +472,36 @@ paths:
                     offersIds: { type: array, items: { type: integer } }
                     friend: { type: boolean }
                     sponsorship: { type: boolean }
+  /contracts/{contract}/defect-types:
+    parameters: [{ $ref: '#/components/parameters/contract' }]
+    get:
+      tags: [Contrat]
+      operationId: listDefectTypes
+      summary: 'Types de défauts signalables (exige `Accept: application/vnd.defect-type.v1+json`)'
+      description: |
+        Alimente le motif d'une notation négative : c'est le `cdrCode` de l'entrée retenue qui part dans le
+        corps de `POST .../trips/{tripId}/rate`. `category=DECLARED_CUSTOMER` correspond à ce que déclare un
+        client, `DECLARED_AGENT` à ce que saisit un agent.
+      x-status: decompiled
+      parameters:
+        - {
+            name: domain,
+            in: query,
+            schema: { type: string, enum: [BIKE, STAND, STATION, UNKNOWN] },
+          }
+        - {
+            name: category,
+            in: query,
+            schema: { type: string, enum: [DECLARED_CUSTOMER, DECLARED_AGENT] },
+          }
+        - { name: active, in: query, schema: { type: boolean } }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: OK
+          content:
+            application/vnd.defect-type.v1+json:
+              schema: { type: array, items: { $ref: '#/components/schemas/DefectType' } }
 
   # ---------------------------------------------------------------- Stations et vélos
   /contracts/{contract}/stations:
@@ -1283,6 +1314,38 @@ paths:
           content:
             application/vnd.trip.v5+json:
               schema: { type: array, items: { $ref: '#/components/schemas/Trip' } }
+  /contracts/{contract}/accounts/{accountId}/trips/{tripId}/rate:
+    parameters:
+      - $ref: '#/components/parameters/contract'
+      - $ref: '#/components/parameters/accountId'
+      - $ref: '#/components/parameters/tripId'
+    post:
+      tags: [Trajets et statistiques]
+      operationId: rateTripBike
+      summary: Noter le vélo d'un trajet (crédite 5 points de fidélité)
+      description: |
+        L'invitation à noter n'est pas un push : c'est le champ `isRated: false` du trajet, relu au retour dans
+        l'app, qui la déclenche. La notation est binaire (`recommended`), possible une seule fois par trajet, et
+        crédite la règle `RATE_BIKE` (5 points). En cas de `recommended: false`, `cdrCode` porte le motif choisi
+        dans `GET /contracts/{contract}/defect-types?domain=BIKE&category=DECLARED_CUSTOMER&active=true`.
+
+        Route non exercée en capture : méthode, media-type et forme du corps viennent des interfaces Retrofit
+        de l'app Android officielle 3.3.10.
+      security: [{ Taknv1: [], Identity: [] }]
+      x-status: decompiled
+      requestBody:
+        required: true
+        content:
+          application/vnd.trip.v5+json:
+            schema: { $ref: '#/components/schemas/BikeRate' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/ForbiddenIdentity' }
+        '200':
+          description: Notation enregistrée (le corps est renvoyé en écho)
+          content:
+            application/vnd.trip.v5+json:
+              schema: { $ref: '#/components/schemas/BikeRate' }
   /contracts/{contract}/accounts/{accountId}/stats:
     parameters:
       - $ref: '#/components/parameters/contract'
@@ -1713,6 +1776,12 @@ components:
       name: subscriptionId
       in: path
       required: true
+      schema: { type: string, format: uuid }
+    tripId:
+      name: tripId
+      in: path
+      required: true
+      description: UUID du trajet (`id` d'une entrée de `GET .../trips`).
       schema: { type: string, format: uuid }
 
   requestBodies:
@@ -2157,12 +2226,41 @@ components:
         reducedPrice: { type: integer }
         litigious: { type: boolean }
         isSpecial: { type: boolean }
-        isRated: { type: boolean }
+        isRated: { type: boolean, description: '`false` -> l''app propose de noter le vélo' }
         token: { type: string, description: Code du trajet }
         bikeType: { type: integer, enum: [0, 1] }
         origin: { type: integer }
         createdAt: { type: string }
         updatedAt: { type: string }
+
+    BikeRate:
+      type: object
+      description: Corps et écho de `POST .../trips/{tripId}/rate`.
+      required: [bikeId, recommended, contract]
+      properties:
+        bikeId:
+          type: integer
+          description: '**Numéro** du vélo (`bikeNumber` du trajet), pas son UUID'
+          examples: [20449]
+        recommended:
+          type: boolean
+          description: Notation binaire (« Je recommande ce vélo » / « Je déconseille ce vélo »)
+        contract: { type: string, examples: [lyon] }
+        cdrCode:
+          type: [string, 'null']
+          description: |
+            Motif, uniquement si `recommended: false` ; `cdrCode` d'une entrée de
+            `GET /contracts/{contract}/defect-types`. `null` sinon.
+
+    DefectType:
+      type: object
+      description: 'Motif de défaut signalable, `Accept: application/vnd.defect-type.v1+json`.'
+      properties:
+        id: { type: string, format: uuid }
+        rating: { type: integer }
+        order: { type: integer }
+        cdrCode: { type: string, description: Code repris dans `BikeRate.cdrCode` }
+        isElectricBike: { type: boolean, description: Motif réservé aux vélos électriques }
 
     Transaction:
       type: object
