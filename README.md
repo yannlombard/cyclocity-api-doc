@@ -604,8 +604,8 @@ Le corps des `POST /processes` sérialise certains paramètres sous forme de **c
 | Préfixe                                                                                  | Champs concernés                                                 |
 | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
 | `<[Format:java.lang.Long]>` (l'app iOS écrit `<[Format : java.lang.Long]>` avec espaces) | `offerId`, `badgeId`, `kiwiId`, `bikeModelId`                    |
-| `<[Format:java.util.Date]>`                                                              | `startDate`, `subscriptionStart` (timestamp ms)                  |
-| `<[Format:java.util.UUID]>`                                                              | `subscriptionId`, `transactionId`, `parkingId`, `deliveryShopId` |
+| `<[Format:java.util.Date]>`                                                              | `startDate`, `subscriptionStart`, `endDate` (timestamp ms)       |
+| `<[Format:java.util.UUID]>`                                                              | `subscriptionId`, `transactionId`, `parkingId`, `deliveryShopId`, `tripId`, `saleId` |
 
 Exemple réel : `"badgeId": "<[Format : java.lang.Long]>22"`, `"startDate": "<[Format : java.util.Date]>1772562420000"`. Voir § 6.
 
@@ -1569,7 +1569,7 @@ Les opérations « transactionnelles » (souscrire, renouveler, enregistrer une 
 
 | Méth.    | Endpoint                                                     | Description                                   | Statut |
 | -------- | ------------------------------------------------------------ | --------------------------------------------- | ------ |
-| `POST`   | `/accounts/{id}/processes` `{ "type", "parameters": {...} }` | Lancer un process                             | ✅     |
+| `POST`   | `/accounts/{id}/processes[?returns=]` `{ "type", "parameters": {...} }` | Lancer un process ; `returns` répétable, demande une valeur calculée en retour (§ 6.3) | ✅     |
 | `PATCH`  | `/accounts/{id}/processes/{processId}`                       | Confirmer / reprendre un process (`toResume`) | 🌐 📚  |
 | `DELETE` | `/accounts/{id}/processes/{processId}`                       | Annuler                                       | 📚     |
 
@@ -1711,6 +1711,67 @@ Accept: application/vnd.processes.v2+json
 ### 6.2 Abonnement annuel (LT) : observé partiellement
 
 Parcours web/mobile : `GET /offerGroups/603560/offers` + `/accounts/{id}/offerGroups/603560/offers` (éligibilité) -> choix d'un badge (`GET /badges/{id}/logo` pour 40/41/43/44/94077/1009355) -> `POST /offers/1101252/supplements/badges/{badgeId}/packages` (devis 9 900 c) -> si le moyen de paiement doit être (ré)enregistré : `POST /pay/checkout` -> page Worldline -> retour -> process `REGISTER_PAYMENT_METHOD` (`checkoutId`) -> process `LONG_TERM_SUBSCRIPTION_V2` (`badgeId`, `orderCard` (commander une carte Vélo'v ?), `offerId`, `cgauVersion`, `platform`, `subscriptionId` (renouvellement)). Les offres jeunes/solidaires demandent un justificatif (`proofs`, `POST /documents`, alerte `PROOF_WAITING`).
+
+
+### 6.3 Selfcare : le verdict revient dans la réponse (📱)
+
+Les parcours « Besoin d'aide » (§ 7.4) passent par cette même route, avec une particularité : **le paramètre de requête `returns` demande au serveur de calculer une valeur et de la rendre dans `results`**. C'est ainsi que la contestation du montant d'un trajet obtient une décision immédiate, sans second appel.
+
+Le type de process et le `returns` sont choisis à partir du dossier construit par l'écran (classe `vk/d$a`, méthode `n()`) :
+
+| Dossier construit par l'app                                | `type`                          | `returns`                        |
+| ---------------------------------------------------------- | ------------------------------- | -------------------------------- |
+| `AmountDisagree` avec `status != SOLVED` (contestation)     | `SELFCARE_TRIP_AMOUNT`          | `incident_type`                  |
+| `AmountDisagree` avec `status == SOLVED` (acceptation)      | `CREATE_SALESFORCE_CASE`        | *(aucun)*                        |
+| `ReturnedBike` (« j'ai déjà rendu mon vélo »)               | `SELFCARE_RETURNED_BIKE`        | `incident_type`                  |
+| `SubscriptionTerminate` (résiliation)                       | `SELFCARE_RESCIND_SUBSCRIPTION` | `subscription_condition_status`  |
+| tous les autres                                             | `CREATE_SALESFORCE_CASE`        | *(aucun)*                        |
+
+**Contestation du montant d'un trajet** — l'utilisateur corrige sa station d'arrivée et/ou son heure de fin, puis :
+
+```http
+POST /contracts/lyon/accounts/{accountId}/processes?returns=incident_type
+Content-Type: application/vnd.processes.v2+json
+Authorization: Taknv1 {clientToken}
+Identity: {accessToken}
+```
+
+```json
+{
+  "type": "SELFCARE_TRIP_AMOUNT",
+  "parameters": {
+    "tripId": "<[Format : java.util.UUID]>00000000-0000-0000-0000-000000000000",
+    "subscriptionId": "<[Format : java.util.UUID]>00000000-0000-0000-0000-000000000000",
+    "saleId": "<[Format : java.util.UUID]>00000000-0000-0000-0000-000000000000",
+    "stationId": "2002",
+    "endDate": "<[Format : java.util.Date]>1772562420000",
+    "origin": "WEBFORM_APPLI",
+    "platform": "MOBILE"
+  }
+}
+```
+
+`parameters` est une **map plate** sérialisée par Jackson, pas un objet typé par process ; les valeurs non scalaires portent les préfixes du § 4.4. `tripId`, `subscriptionId`, `saleId` et `origin` partent toujours ; `stationId` (numéro de station d'arrivée, en chaîne) et `endDate` (epoch ms) seulement si l'utilisateur les a saisis ; `platform: MOBILE` est ajouté par le dépôt. Le `saleId` vient de `GET /sales?infoType=TRIP` (§ 5.7), c'est-à-dire de l'écran qui liste les trajets contestables.
+
+La réponse est un `ProcessResult` ordinaire, **le verdict dans `results`** :
+
+```json
+{ "executionId": 519000000, "type": "SELFCARE_TRIP_AMOUNT", "inError": false,
+  "toResume": false, "startTime": "...", "endTime": "...",
+  "results": { "incident_type": "PAID_AND_NO_INCIDENT" },
+  "error": null }
+```
+
+`error` (quand `inError: true`) porte `{ type, message, complement }`. L'app lit `results.incident_type` en clair — sans préfixe de format — et n'émet aucun appel supplémentaire : l'écran de résultat est rendu localement.
+
+**Les dix valeurs d'`incident_type`** : `TECHNICAL_INCIDENT`, `POORLY_HANGED_BIKE`, `NO_INCIDENT`, puis les six combinaisons `NOT_PAID_AND_*` / `PAID_AND_*` (`TECHNICAL_INCIDENT`, `POORLY_HANGED_BIKE`, `NO_INCIDENT`), et `NO_COMMERCIAL_GESTURE`. Ce sont elles qui commandent les huit textes de décision du § 7.4 : annulation ou remboursement immédiat sur incident technique, geste commercial « à titre exceptionnel » la première fois, montant maintenu ensuite.
+
+**Acceptation du montant** (l'utilisateur renonce, depuis l'écran de détail) : même route, **sans** `returns`, avec `type: CREATE_SALESFORCE_CASE` et les cinq champs de qualification en plus dans `parameters` — `status: SOLVED`, `qualification: TRIP`, `subtype: FACTURATION`, `resolution: TRIP_BILLING_NO_ANOMALIES`, `subject: INCORRECT_TRIP_AMOUNT` (noter `subtype` en minuscules dans le corps, là où le modèle l'appelle `subType`).
+
+Le parcours « j'ai déjà rendu mon vélo » suit le même schéma, avec son propre jeu de valeurs : `TECHNICAL_INCIDENT`, `POORLY_HANGED_BIKE`, `NO_INCIDENT`, `TOO_MANY_SELFCARE_RETURNED_BIKE_CALLS` — ce dernier étant le plafond `max.selfcare.returned.bike.per.account` (§ 9), qui vaut **1** sur Lyon.
+
+Deux réserves sur cette section : elle est **lue dans le binaire Android 3.3.10, jamais exercée** — aucune de nos sessions ne contient un `POST /processes` de selfcare — et l'app ne déclare **aucun en-tête `Accept`** sur cette route, seulement le `Content-Type`.
+
 
 ---
 

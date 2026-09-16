@@ -1770,10 +1770,29 @@ paths:
         Certains paramètres sont sérialisés en chaînes **préfixées par un type Java** (§ 4.4) :
         `"<[Format:java.lang.Long]>75171"` (offerId, badgeId, kiwiId, bikeModelId),
         `"<[Format:java.util.Date]>1772562420000"` (startDate, subscriptionStart, timestamp ms),
-        `"<[Format:java.util.UUID]>..."` (subscriptionId, transactionId, parkingId, deliveryShopId).
+        `"<[Format:java.util.UUID]>..."` (subscriptionId, transactionId, parkingId, deliveryShopId, tripId, saleId).
         Vérifier `inError: false` ; `toResume: true` signifie qu'un `PATCH .../processes/{executionId}` est attendu.
+        `parameters` est une map plate sérialisée par Jackson, sans objet typé par process.
+        Le paramètre de requête `returns` demande une valeur calculée en retour, rendue dans `results` :
+        les parcours selfcare l'utilisent pour obtenir un verdict immédiat (`SELFCARE_TRIP_AMOUNT` et
+        `SELFCARE_RETURNED_BIKE` -> `incident_type`, `SELFCARE_RESCIND_SUBSCRIPTION` ->
+        `subscription_condition_status`). Voir § 6.3 du README.
       security: [{ Taknv1: [], Identity: [] }]
       x-status: observed
+      parameters:
+        - {
+            name: returns,
+            in: query,
+            style: form,
+            explode: true,
+            schema:
+              {
+                type: array,
+                items:
+                  { type: string, enum: [incident_type, subscription_condition_status] },
+              },
+            description: 'Répétable. Lu dans le binaire Android 3.3.10, jamais exercé en capture.',
+          }
       requestBody:
         required: true
         content:
@@ -2548,4 +2567,13 @@ components:
         toResume: { type: boolean }
         startTime: { type: string }
         endTime: { type: string }
-        results: { type: object }
+        results:
+          type: object
+          description: 'Valeurs demandées par `?returns=`. Ex. `{ "incident_type": "PAID_AND_NO_INCIDENT" }` — rendu en clair, sans préfixe de format. Vide sans `returns`.'
+        error:
+          type: object
+          description: "Présent quand `inError: true` (📱, non exercé)."
+          properties:
+            type: { type: string }
+            message: { type: string }
+            complement: { type: string }

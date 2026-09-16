@@ -2232,6 +2232,49 @@
           "id": "cyclocity-08-00"
         },
         {
+          "name": "📱 ⚠️ Contester le montant d'un trajet (SELFCARE_TRIP_AMOUNT, ouvre un dossier réel)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Taknv1 {{takn}}"
+              },
+              {
+                "key": "Identity",
+                "value": "{{identity}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.processes.v2+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contracts/{{contract}}/accounts/{{accountId}}/processes?returns=incident_type",
+              "host": ["{{baseUrl}}"],
+              "path": ["contracts", "{{contract}}", "accounts", "{{accountId}}", "processes"],
+              "query": [
+                {
+                  "key": "returns",
+                  "value": "incident_type",
+                  "description": "Sans lui, le serveur crée un dossier muet au lieu de rendre un verdict"
+                }
+              ]
+            },
+            "description": "ACTION RÉELLE : ouvre une réclamation sur un vrai trajet et peut déclencher une annulation ou un remboursement. Lu dans le binaire Android 3.3.10, jamais exercé (📱). Le verdict revient dans results.incident_type de la même réponse, en clair : TECHNICAL_INCIDENT, POORLY_HANGED_BIKE, NO_INCIDENT, les six combinaisons NOT_PAID_AND_* / PAID_AND_*, NO_COMMERCIAL_GESTURE. tripId, subscriptionId et saleId viennent de GET /sales?infoType=TRIP ; stationId et endDate ne partent que si l'utilisateur les a corrigés. L'app ne déclare aucun Accept sur cette route. Voir § 6.3.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"SELFCARE_TRIP_AMOUNT\",\n  \"parameters\": {\n    \"tripId\": \"<[Format : java.util.UUID]>{{tripId}}\",\n    \"subscriptionId\": \"<[Format : java.util.UUID]>{{subscriptionId}}\",\n    \"saleId\": \"<[Format : java.util.UUID]>{{saleId}}\",\n    \"stationId\": \"2002\",\n    \"endDate\": \"<[Format : java.util.Date]>{{endDateMs}}\",\n    \"origin\": \"WEBFORM_APPLI\",\n    \"platform\": \"MOBILE\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "id": "cyclocity-08-00b"
+        },
+        {
           "name": "🌐 Reprendre / confirmer un process (toResume)",
           "request": {
             "method": "PATCH",
@@ -2375,6 +2418,14 @@
     },
     {
       "key": "startDateMs",
+      "value": ""
+    },
+    {
+      "key": "saleId",
+      "value": ""
+    },
+    {
+      "key": "endDateMs",
       "value": ""
     }
   ]
