@@ -709,7 +709,7 @@ curl -s "https://api.cyclocity.fr/contracts/lyon/campaigns" -H "Authorization: T
 **`GET /assets/{id}`** -> `{ id, filename, mimeType, content: "<base64>" }` (splash screen : `image/jpeg`).
 **`GET /shops`** -> `[{ id, contractName, name, address{street, zipCode, city, country}, businessHours[], services[{service{name: shop.crc|shop.batteries|shop.vld}, activated}], status: OPEN|CLOSED, content[], updatedAt }]`.
 **`GET /events`** -> page Spring `{ content: [{ id, type: "CLOSING", nature: "WORKS"|"DETERIORATION", startDate, endDate?, highPriority?, stations[{code,label}], content{language,title,description} }], pageable, totalPages, totalElements, size, number, sort, numberOfElements }`.
-**`POST /faqs/search`** -> `[{ id, topicId, topicCode, contractName, rank, contents[{question, response, language}] }]`.
+**`POST /faqs/search`** -> `[{ id, topicId, topicCode, contractName, rank, contents[{question, response, language}] }]`. Réponses en **texte brut**, `language: "fr"` seulement ; 35 questions sur Lyon au 16/09/2026 (`RIDE` 10, `ABO` 20, `PAY` 5, `REWARDS` 0). Plusieurs décrivent des gestes de l'app officielle (« cliquez sur la notification de fin de trajet »), ce qui se voit dans un autre client. **Aucune session Charles ne montre un client appeler cet endpoint** : la FAQ est rendue par le site (composant `vls-faq-list-container`, page tutoriels et espace client), et le menu « Besoin d'aide » de l'app ne l'affiche pas (§ 7.4).
 **`GET /cgau/VLS/valid`** -> `{ "version": "003.002", "type": "VLS", "amendmentLevel": "MINOR", "validityStart": "2025-06-13", "isValid": true, "documentId": "34428d07-..." }` ; la `version` est à renvoyer dans les process (`cgauVersion`).
 **`GET /bikemodels?isValid=true`** -> `[{ id: 75870, name: "myvélo'v", description, characteristics, price: 0, availabilityStart, supply: 604, availabilityEstimation, contractCode }]`.
 **`GET /cgau`** -> liste toutes les versions des CGU (`003.002` MINOR 2025-06-13 valide, `003.001` MAJOR 2025-01-01, `002.001` 2020-01-24...) ; `/cgau/{VLS|VLD|PARKING}/valid` renvoie la version valide d'un type, `.../valid/file` et `.../versions/{v}/file` le PDF.
@@ -1339,7 +1339,7 @@ Aucun trajet sur la période -> `404 { "code": "stats.exception.stats.not.found"
 | `GET`  | `/accounts/{id}/transactions[?showRegulationId=true]`                         | C+I  | Transactions (prélèvements CB)                                                                                                                             | ✅      |
 | `GET`  | `/accounts/{id}/transactions/{txId}`                                          | C+I  | Détail + lignes `sales`                                                                                                                                    | ✅      |
 | `GET`  | `/accounts/{id}/transactions/{txId}/bill`                                     | C+I  | Facture PDF, **`406` avec `Accept: application/pdf`** (le bon media-type reste à trouver) ; le reçu d'abonnement passe par `POST .../periods/{id}/reports` | ⚠️ live |
-| `GET`  | `/accounts/{id}/sales[?infoType=&natures=&saleDateAfter=&status=&direction=]` | C+I  | Lignes de vente (`vnd.sale.v1`) ; avec `infoType=TRIP`, chaque ligne embarque le **trajet facturé** (ci-dessous)                                           | ✅ live |
+| `GET`  | `/accounts/{id}/sales[?infoType=&natures=&saleDateAfter=&status=&direction=]` | C+I  | Lignes de vente (`vnd.sale.v1`) ; avec `infoType=TRIP`, chaque ligne embarque le **trajet facturé** ; alimente les trois écrans « Besoin d'aide » (ci-dessous)                                         | ✅ live |
 | `GET`  | `/accounts/{id}/subscriptions/{kiwiId}/balance`                               | C+I  | Solde par abonnement                                                                                                                                       | 📚      |
 | `POST` | `/accounts/{id}/pay/checkout`                                                 | C+I  | Ouvre une **page de paiement hébergée Worldline** (enregistrement/changement de CB, 3-DS)                                                                  | ✅      |
 | `POST` | `/accounts/{id}/pay/payment-infos/register`                                   | C+I  | Enregistrement des infos de paiement                                                                                                                       | 🌐      |
@@ -1398,7 +1398,13 @@ Le détail ajoute `sales[]` : `{ id, contractCode, accountId, accountEmail, subs
 | `direction`     | `DEBIT` (ou `CREDIT`)                                                                                       |
 | `saleDateAfter` | ISO 8601 local sans zone (`2026-03-15T16:21:45`) ; l'app demande les six derniers mois                      |
 
-Les trois requêtes de l'app : `?direction=DEBIT&infoType=TRIP&natures=CONSUMPTION&status=PAID` (trajets facturés), `?infoType=TRIP&natures=CONSUMPTION&saleDateAfter={now - 6 mois}&status=PAID&status=TO_INVOICE&status=TO_CONTROL` (dépassements récents, y compris non encore prélevés) et `?infoType=PERIOD&natures=SUBSCRIPTION&status=PAID` (périodes d'abonnement payées, dont les `periodId` alimentent `GET /periods`, § 5.5).
+**Les trois requêtes de l'app sont les trois écrans de son menu « Besoin d'aide »** (§ 7.4), et non l'historique des trajets, qui se lit par `GET /trips` :
+
+| Requête                                                                                                     | Écran                                         | Ce qu'elle liste                                                                  |
+| ----------------------------------------------------------------------------------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------- |
+| `?direction=DEBIT&infoType=TRIP&natures=CONSUMPTION&status=PAID`                                            | « J'ai besoin d'un justificatif de paiement »  | Les trajets déjà payés, chacun avec un bouton de téléchargement                    |
+| `?infoType=TRIP&natures=CONSUMPTION&saleDateAfter={now - 6 mois}&status=PAID&status=TO_INVOICE&status=TO_CONTROL` | « Je ne suis pas d'accord avec le montant »    | Les trajets contestables : six mois glissants, prélevés ou non (d'où les trois `status`) |
+| `?infoType=PERIOD&natures=SUBSCRIPTION&status=PAID`                                                         | « Justificatif d'abonnement »                  | Les périodes payées, dont les `periodId` alimentent `GET /periods` (§ 5.5)         |
 
 ```json
 {
@@ -1770,7 +1776,7 @@ Timeline brute (heure locale de la capture ; les `startDateTime` de l'API sont e
 10:37:38  GET  /trips -> [{status:"FINISHED", duration:3, endStation:2001, price:0}]
 ```
 
-### 7.4 Onglet profil / abonnements / paiements
+### 7.4 Onglet profil / abonnements / paiements / « besoin d'aide »
 
 App 3.3.1 (sessions 7 à 10) :
 
@@ -1789,19 +1795,101 @@ App 3.6.1 (session 13, compte sans abonnement en cours) :
 GET /offerGroups?platform=MOBILE                                                        (« s'abonner »)
 GET /subscriptions?periods=FUTURE + ?periods=CURRENT + ?periods=PAST + /offers          (parallèle, « mes abonnements »)
 GET /transactions?showRegulationId=true                                                 (« mes paiements »)
-GET /sales?direction=DEBIT&infoType=TRIP&natures=CONSUMPTION&status=PAID                (« mes trajets » facturés)
+GET /sales?direction=DEBIT&infoType=TRIP&natures=CONSUMPTION&status=PAID                (aide : « justificatif de paiement »)
 GET /sales?infoType=TRIP&natures=CONSUMPTION&saleDateAfter={now - 6 mois}&status=PAID&status=TO_INVOICE&status=TO_CONTROL
+                                                                                        (aide : « je ne suis pas d'accord avec le montant »)
 GET /subscriptions?noStatus=CLOSED&periods=CURRENT&type=LT  +  ...&periods=FUTURE&type=LT
 GET /subscriptions?noStatus=CLOSED&noStatus=INCOMPLETE_FILE&noStatus=NOT_VALID_YET&periods=CURRENT|PAST&type=LT|PARKING   (x4)
 GET /subscriptions?noStatus=CLOSED&periods=CURRENT|FUTURE&type=LT|BATTERY|PARKING|UB                                     (x8)
+                                                                                        (aide : « mes abonnements », un appel par type)
 GET /sales?infoType=PERIOD&natures=SUBSCRIPTION&status=PAID -> GET /periods?periodIds={ids}      (404, § 5.5)
+                                                                                        (aide : « justificatif d'abonnement »)
 GET /balance -> GET /transactions/{txId} + /offers/{offerId}/ + /subscriptions/{subId}          (détail d'un paiement)
 GET /rewards/history?page=0 -> GET /rewards/configurations                                      (« mes points »)
 GET /accounts/{id}/cgau + /cgau/VLS/valid + /accounts/{id}/offers + /subscriptions?periods=PAST,CURRENT,FUTURE
     + /offers/{offerId}/supplements?isValid=true -> POST /offers/{offerId}/supplements/badges/{badgeId}/packages x2   (devis avant achat)
+                                                                                        (aide : « mon support d'accès »)
 ```
 
 Entre deux écrans, le « polling home » (§ 7.2) continue, `trips` compris.
+
+#### Le menu « Besoin d'aide » (app 3.6.1, session 13)
+
+Le cinquième onglet de l'app porte ce nom, mais ce n'est pas un service client : c'est un **menu d'actions en libre-service**, entièrement construit à partir des données du compte. Chaque branche est une lecture déjà documentée ailleurs dans ce fichier ; aucune n'est un écran web (la session 13 ne contacte aucun hôte web, seulement `api.cyclocity.fr`, `api.jcdecaux.com`, `iam.cyclocity.fr` et Matomo).
+
+| Branche du menu               | Sous-écran                                    | Requête                                                                                                                                       |
+| ----------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Un trajet passé**           | « J'ai besoin d'un justificatif de paiement »  | `GET /sales?direction=DEBIT&infoType=TRIP&natures=CONSUMPTION&status=PAID` (§ 5.7) ; le téléchargement du PDF lui-même n'a pas été capturé (`/transactions/{txId}/bill` ?) |
+|                               | « Je ne suis pas d'accord avec le montant »    | `GET /sales?infoType=TRIP&natures=CONSUMPTION&saleDateAfter={now - 6 mois}&status=PAID&status=TO_INVOICE&status=TO_CONTROL` — d'où la fenêtre de six mois |
+| **Mes abonnements**           | liste par type                                 | `GET /subscriptions?noStatus=CLOSED&periods=…&type=LT\|UB\|BATTERY\|PARKING` (un appel par type), puis `GET /sales?infoType=PERIOD&natures=SUBSCRIPTION&status=PAID` -> `GET /periods?periodIds={ids}` pour le justificatif |
+| **Mon support d'accès**       | remplacement / perte                           | `GET /accounts/{id}/cgau`, `/cgau/VLS/valid`, `/accounts/{id}/offers`, `/offers/{offerId}/supplements?isValid=true`, puis le devis `POST /offers/{offerId}/supplements/badges/{badgeId}/packages` (§ 6.1) |
+| **Mes paiements**             | « mettre à jour ma carte de paiement »         | `GET /balance`, `/transactions/{txId}`, `/subscriptions/{subId}` ; l'écran prévient d'une pré-autorisation de 150 € puis redirige vers le prestataire — la suite (process `REGISTER_PAYMENT_METHOD`, § 6) n'a pas été capturée ici |
+| **Mon compte**                | « supprimer son compte »                       | process `ACCOUNT_UNSUBSCRIBE` (§ 6) — **non capturé**, l'écran de confirmation n'a pas été validé                                              |
+| **D'autres demandes**         | —                                              | **non capturé** ; probablement `POST /accounts/{id}/mail` (§ 5.3)                                                                              |
+
+Deux points à retenir :
+
+- **La FAQ n'apparaît nulle part dans ce menu.** Aucune des treize sessions ne montre l'app appeler `POST /faqs/search` ni `GET /topics` : les questions-réponses sont un contenu du **site** (§ 5.1).
+- **Aucun `POST .../processes` dans la session 13.** Le parcours se contente de lire ; tout ce qui engage le compte (contestation, résiliation, désinscription) reste à capturer.
+
+#### L'arborescence complète du menu (📱 binaire Android 3.3.10)
+
+Une capture ne montre que les branches parcourues. L'arbre entier, lui, est écrit en dur dans l'app : les libellés dans `res/values-fr/strings.xml` (177 chaînes `selfcare_*`), la structure dans l'énumération `SelfCareQuestion` (`com/jcdecaux/vls/app/selfcare/utils/`), qui porte pour chaque entrée un titre, une icône, la liste de ses enfants, l'action de navigation et un nom d'événement Matomo. Vingt-sept entrées, sept racines :
+
+```text
+Un trajet passé                         Mon compte
+  - J'ai besoin d'un justificatif          - Supprimer son compte
+    de paiement                            - Modifier son code secret
+  - Je ne suis pas d'accord avec           - Modifier son email
+    le montant
+                                        D'autres demandes
+Mes abonnements                            - Signaler un vélo défectueux
+  - Je souhaite changer de formule         - Signaler un vélo abandonné       (cab.enabled)
+  - Je souhaite renouveler mon             - Nous contacter                   (contactus.enabled)
+    abonnement
+  - J'ai besoin d'un justificatif        Un trajet en cours   [trajet en cours seulement]
+    d'abonnement                           - Je ne trouve pas de place pour
+  - Je souhaite résilier mon                 restituer mon vélo
+    abonnement                             - J'ai déjà rendu mon vélo
+                                           - Je me suis fait voler mon vélo
+Mon support d'accès   [conditionnel]
+  - Je souhaite changer de support       Mes paiements
+    d'abonnement                           - Je souhaite mettre à jour ma
+  - Je souhaite déclarer le vol ou           carte de paiement
+    la perte de ma carte                   - Je souhaite régulariser un impayé
+```
+
+La racine rendue par `SelfCareListFragment` est `PAST_TRIP, SUBSCRIPTIONS, PAYMENT_METHODS, ACCOUNT, OTHER` ; « Mon support d'accès » s'y insère sous condition, et « Un trajet en cours » n'apparaît que pendant un trajet. Le menu entier est commandé par `selfcare.enabled` (§ 9). La vingt-septième entrée, `LOCK_BLOCKED` (« L'antivol de mon vélo est bloqué »), n'est l'enfant d'aucune branche : elle s'atteint ailleurs, depuis l'écran d'un trajet en cours.
+
+**Les dossiers partent par les process** (`processesRepository` dans le binaire), et le vocabulaire des corps est celui des modèles `domain/model/selfcare/` :
+
+| Champ           | Valeurs                                                                                                                                                                         |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `qualification` | `TRIP`, `SUBSCRIPTION`, `ACCOUNT`                                                                                                                                                 |
+| `subType`       | `STOLEN_BIKE`, `LOOKING_FOR_AVAILABLE_SPOTS`, `FACTURATION`, `LOOKING_FOR_INVOICE`, `LOOKING_FOR_SUBSCRIPTION_INVOICE`, `ACCOUNT_CREDENTIALS`, `PAYMENT_INFORMATION`, `RENEWAL`  |
+| `subject`       | `STOLEN_BIKE`, `VIA_GRANTED`, `VIA_NOT_GRANTED`, `STATION_NOT_FULL`, `ALL_STATIONS_ARE_FULL`, `EMPTY`, `INCORRECT_TRIP_AMOUNT`, `TRIPS_INVOICE_REQUEST`, `SUBSCRIPTION_INVOICE_REQUEST`, `ACCOUNT_FORGOT_PASSWORD`, `SETTLE_PAYMENT`, `RENEWAL` |
+| `resolution`    | `EMPTY`, `THEFT`, `ROBBERY`, `BREAKING_AND_ENTERING`, `REMAINING_SLOTS_IN_NEAR_STAT`, `ALL_STATIONS_ARE_FULL`, `STATION_NOT_FULL`, `NONE_INCIDENT`, `INVOICE_DOWNLOADED`, `TRIP_BILLING_NO_ANOMALIES`, `INVOICE_SUBSCRIPTION_DOWNLOADED`, `ACCOUNT_PASSWORD`, `SETTLE_PAYMENT`, `SETTLE_PAYMENT_KO`, `CUSTOMER_IN_TACIT_RENEWAL` |
+| `status`        | `UNKNOWN`, `SOLVED`                                                                                                                                                               |
+| `actionName`    | `VIA`, `TRIPS_INVOICE_DOWNLOADED`, `SUBSCRIPTION_PROOF_DOWNLOADED`, `DEACTIVATION_OF_TACIT_RENEWAL`                                                                              |
+
+Chaque branche a son modèle : `SelfCareCreateCaseAmountDisagree` (`tripId`, `subscriptionId`, `saleId`, `arrivalStationNumber`, `endDate`), `…ReturnedBike` (`tripId`, `stationId`, `subscriptionId`), `…StolenBike` (`comment`, `proofIds`), `…SubscriptionTerminate` (`subscriptionId`, `comment`), `…RegularizePayment`, `…Password`, `…UpdateAutoRenewal`, `…PaymentProof`, `…SubscriptionProof`, `…NoStandAvailable`. Aux dix types de process du § 6 s'ajoutent, lus dans ce binaire : **`SELFCARE_CREATE_CASE`, `SELFCARE_VIA`, `SELFCARE_UNSUBSCRIBE`**.
+
+#### La contestation de montant est arbitrée automatiquement
+
+C'est le point le moins évident du menu : « Je ne suis pas d'accord avec le montant » n'ouvre pas un formulaire libre. L'utilisateur choisit un motif (station de restitution incorrecte, durée incorrecte, autre), ressaisit ses heures et stations réelles, et **la réponse tombe immédiatement**. Le verdict est décidé côté serveur : l'app reçoit un `SelfCareCreateCaseAmountDisagree.IncidentType` et se contente d'afficher le texte correspondant. La table ci-dessous n'est pas déduite des noms : elle est lue dans le `when` de `SelfCareAmountDisagreeModifyFragment` et dans sa table de correspondance Kotlin.
+
+| `IncidentType`                     | Décision affichée                                                                                            |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `NOT_PAID_AND_TECHNICAL_INCIDENT`  | Incident technique à la restitution -> **annulation immédiate** de la facturation                              |
+| `PAID_AND_TECHNICAL_INCIDENT`      | Incident technique -> **remboursement immédiat** (24 à 48 h selon les banques)                                 |
+| `NOT_PAID_AND_POORLY_HANGED_BIKE`  | Alarme « vélo mal accroché » : montant conforme, mais **annulation à titre exceptionnel, première fois**        |
+| `NOT_PAID_AND_NO_INCIDENT`         | Aucun incident détecté : montant conforme, **annulation à titre exceptionnel, première fois**                  |
+| `PAID_AND_POORLY_HANGED_BIKE`      | Alarme « vélo mal accroché » : montant conforme, **annulation à titre exceptionnel, première fois**             |
+| `PAID_AND_NO_INCIDENT`             | Aucun incident détecté : montant conforme, **remboursement à titre exceptionnel, première fois**               |
+| `NO_COMMERCIAL_GESTURE`            | Alarme « vélo mal accroché » ou aucun incident : **montant maintenu**, aucun geste (le geste a déjà été fait)  |
+| *(autre)*                          | « Merci de vérifier que les éléments communiqués sont corrects et de contacter le service clientèle. »          |
+
+Les trois causes nues existent aussi dans l'énumération (`TECHNICAL_INCIDENT`, `POORLY_HANGED_BIKE`, `NO_INCIDENT`), sans le préfixe de facturation. Le parcours « J'ai déjà rendu mon vélo » a la sienne, `SelfCareCreateCaseReturnedBike.IncidentType`, avec un quatrième cas : `TOO_MANY_SELFCARE_RETURNED_BIKE_CALLS` — c'est le plafond `max.selfcare.returned.bike.per.account` (§ 9), qui vaut **1** sur Lyon.
 
 ### 7.5 Déconnexion (session 3/12)
 

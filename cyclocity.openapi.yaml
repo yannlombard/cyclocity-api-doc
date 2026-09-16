@@ -356,6 +356,7 @@ paths:
       tags: [Contrat]
       operationId: searchFaqs
       summary: FAQ d'un topic (`GET /faqs` -> 405)
+      description: "Réponses en texte brut, `language: \"fr\"` seulement ; 35 questions sur Lyon au 16/09/2026 (`RIDE` 10, `ABO` 20, `PAY` 5, `REWARDS` 0). Rendue par le site (page tutoriels et espace client) ; aucune session Charles ne montre un client appeler cet endpoint, et le menu « Besoin d'aide » de l'app ne l'affiche pas."
       x-status: observed
       requestBody:
         required: true
@@ -1230,7 +1231,7 @@ paths:
       tags: [Abonnements]
       operationId: getPeriodsByIds
       summary: Périodes d'abonnement par identifiants
-      description: "Appelé par l'app 3.6.1 avec les `periodId` de `GET .../sales?infoType=PERIOD` et un `Content-Type: application/vnd.subscription.v6+json` sans `Accept`. Seule réponse observée : `404 accounts.exception.notfound.searched.periods` (périodes de tickets clos) ; la forme du `200` n'est pas connue."
+      description: "Appelé par l'app 3.6.1 sur l'écran « justificatif d'abonnement » de son menu « Besoin d'aide », avec les `periodId` de `GET .../sales?infoType=PERIOD` et un `Content-Type: application/vnd.subscription.v6+json` sans `Accept`. Seule réponse observée : `404 accounts.exception.notfound.searched.periods` (périodes de tickets clos) ; la forme du `200` n'est pas connue."
       security: [{ Taknv1: [], Identity: [] }]
       x-status: observed
       parameters:
@@ -1582,7 +1583,7 @@ paths:
       tags: [Paiement]
       operationId: listSales
       summary: Lignes de vente, avec le trajet facturé si `infoType=TRIP`
-      description: "L'app 3.6.1 envoie `Content-Type: application/vnd.sale.v1+json` avec `Accept: */*` ; la réponse est en `application/vnd.sale.v1+json` (le même type en `Accept` fonctionne aussi, vérifié live le 15/09/2026). Trois requêtes observées : `?direction=DEBIT&infoType=TRIP&natures=CONSUMPTION&status=PAID`, `?infoType=TRIP&natures=CONSUMPTION&saleDateAfter={now - 6 mois}&status=PAID&status=TO_INVOICE&status=TO_CONTROL`, `?infoType=PERIOD&natures=SUBSCRIPTION&status=PAID`."
+      description: "L'app 3.6.1 envoie `Content-Type: application/vnd.sale.v1+json` avec `Accept: */*` ; la réponse est en `application/vnd.sale.v1+json` (le même type en `Accept` fonctionne aussi, vérifié live le 15/09/2026). Les trois requêtes observées sont les trois écrans de son menu « Besoin d'aide » (session 13), pas l'historique des trajets, qui se lit par `GET /trips` : `?direction=DEBIT&infoType=TRIP&natures=CONSUMPTION&status=PAID` = « j'ai besoin d'un justificatif de paiement » ; `?infoType=TRIP&natures=CONSUMPTION&saleDateAfter={now - 6 mois}&status=PAID&status=TO_INVOICE&status=TO_CONTROL` = « je ne suis pas d'accord avec le montant », d'où la fenêtre de six mois et les trois `status` ; `?infoType=PERIOD&natures=SUBSCRIPTION&status=PAID` = « justificatif d'abonnement », dont les `periodId` alimentent `GET /periods`."
       security: [{ Taknv1: [], Identity: [] }]
       x-status: live
       parameters:

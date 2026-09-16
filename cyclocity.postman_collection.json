@@ -1994,7 +1994,7 @@
           "id": "cyclocity-07-07"
         },
         {
-          "name": "✅ live Ventes : trajets facturés",
+          "name": "✅ live Aide : justificatif de paiement (ventes de trajets)",
           "request": {
             "method": "GET",
             "header": [
@@ -2034,12 +2034,66 @@
                 }
               ]
             },
-            "description": "Chaque ligne embarque le trajet facturé dans saleAdditionnalInfo.additionalInfos (noms de stations, elecTripsNb, overchargeAmount), que GET /trips ne renvoie pas. L'app envoie le media-type en Content-Type avec Accept: */* ; la réponse est en application/vnd.sale.v1+json. Variante de l'app pour les dépassements récents : ?infoType=TRIP&natures=CONSUMPTION&saleDateAfter=2026-03-15T16:21:45&status=PAID&status=TO_INVOICE&status=TO_CONTROL (§ 5.7)."
+            "description": "Écran « J'ai besoin d'un justificatif de paiement » du menu « Besoin d'aide » de l'app (session 13, § 7.4). Chaque ligne embarque le trajet facturé dans saleAdditionnalInfo.additionalInfos (noms de stations, elecTripsNb, overchargeAmount), que GET /trips ne renvoie pas ; le téléchargement du PDF n'a pas été capturé. L'app envoie le media-type en Content-Type avec Accept: */* ; la réponse est en application/vnd.sale.v1+json (§ 5.7)."
           },
           "id": "cyclocity-07-08"
         },
         {
-          "name": "✅ live Ventes : périodes d'abonnement payées",
+          "name": "✅ Aide : trajets contestables (6 mois glissants)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Taknv1 {{takn}}"
+              },
+              {
+                "key": "Identity",
+                "value": "{{identity}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.sale.v1+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contracts/{{contract}}/accounts/{{accountId}}/sales?infoType=TRIP&natures=CONSUMPTION&saleDateAfter=2026-03-15T16:21:45&status=PAID&status=TO_INVOICE&status=TO_CONTROL",
+              "host": ["{{baseUrl}}"],
+              "path": ["contracts", "{{contract}}", "accounts", "{{accountId}}", "sales"],
+              "query": [
+                {
+                  "key": "infoType",
+                  "value": "TRIP"
+                },
+                {
+                  "key": "natures",
+                  "value": "CONSUMPTION"
+                },
+                {
+                  "key": "saleDateAfter",
+                  "value": "2026-03-15T16:21:45",
+                  "description": "ISO 8601 local sans zone ; l'app calcule now - 6 mois"
+                },
+                {
+                  "key": "status",
+                  "value": "PAID"
+                },
+                {
+                  "key": "status",
+                  "value": "TO_INVOICE"
+                },
+                {
+                  "key": "status",
+                  "value": "TO_CONTROL"
+                }
+              ]
+            },
+            "description": "Écran « Je ne suis pas d'accord avec le montant » du menu « Besoin d'aide » (session 13, § 7.4) : les trajets contestables sur six mois glissants, prélevés ou non — d'où les trois status répétés. Liste vide observée sur un compte sans trajet récent. La contestation elle-même part sur un process (SELFCARE_TRIP_AMOUNT / CREATE_SALESFORCE_CASE) dont le corps n'est pas encore capturé (§ 5.7)."
+          },
+          "id": "cyclocity-07-08b"
+        },
+        {
+          "name": "✅ live Aide : justificatif d'abonnement (périodes payées)",
           "request": {
             "method": "GET",
             "header": [
@@ -2075,7 +2129,7 @@
                 }
               ]
             },
-            "description": "Le test enregistre le premier periodId -> {{periodId}} (pour « Périodes par identifiants » et le reçu PDF)."
+            "description": "Écran « Justificatif d'abonnement » du menu « Besoin d'aide » (session 13, § 7.4). Le test enregistre le premier periodId -> {{periodId}} (pour « Périodes par identifiants » et le reçu PDF)."
           },
           "event": [
             {
