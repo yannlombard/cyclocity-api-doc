@@ -2,7 +2,7 @@
 
 [![Statut : documentation communautaire, non officielle](https://img.shields.io/badge/statut-communautaire%2C%20non%20officielle-orange)](#avertissement) [![Observé sur l'app Vélo'v iOS 3.3.1, fév.-mars 2026](https://img.shields.io/badge/observ%C3%A9%20sur-V%C3%A9lo%27v%20iOS%203.3.1%20%28f%C3%A9v.--mars%202026%29-blue)](#1-méthodologie-et-sources) [![Dernière vérification live : 18/08/2026](https://img.shields.io/badge/v%C3%A9rifi%C3%A9%20live-18%2F08%2F2026-brightgreen)](#5-référence-des-endpoints) [![Licence CC BY 4.0](https://img.shields.io/badge/licence-CC%20BY%204.0-lightgrey)](#licence) [![OpenAPI 3.1 + Postman](https://img.shields.io/badge/OpenAPI%203.1-%2B%20Postman-85EA2D)](cyclocity.openapi.yaml) [![Contributions bienvenues](https://img.shields.io/badge/contributions-bienvenues-blueviolet)](#contribuer)
 
-> Documentation reverse-engineered de l'API **Cyclocity** de JCDecaux (`api.cyclocity.fr`) telle qu'utilisée par l'application **Vélo'v officiel** (iOS 3.3.1) et par le site **velov.grandlyon.com**. Elle est destinée aux développeurs qui veulent construire des outils autour du service Vélo'v (et, par extension, des autres services JCDecaux motorisés par la même plateforme : Bicloo, Villo!, Vel'oh!, dublinbikes, VélôToulouse...).
+> Documentation reverse-engineered de l'API **Cyclocity** de JCDecaux (`api.cyclocity.fr`) telle qu'utilisée par l'application **Vélo'v officiel** (iOS 3.3.1, puis 3.6.1) et par le site **velov.grandlyon.com**. Elle est destinée aux développeurs qui veulent construire des outils autour du service Vélo'v (et, par extension, des autres services JCDecaux motorisés par la même plateforme : Bicloo, Villo!, Vel'oh!, dublinbikes, VélôToulouse...).
 >
 > **En bref** : une clé publique suffit pour lire stations, vélos, offres et configuration ; un compte Vélo'v (login Keycloak) est nécessaire pour les abonnements, trajets, paiements et le déverrouillage. Tout est vérifiable avec `curl` : voir [Démarrage en 2 minutes](#démarrage-en-2-minutes).
 
@@ -79,21 +79,21 @@ Et ensuite ?
 
 ## 1. Méthodologie et sources
 
-| Source                                                                                                                                                                 | Ce qu'elle apporte                                                                                                                                                                                                                                  |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **12 sessions Charles Proxy** (fév.-mars 2026) sur l'app iOS _Vélo'v officiel_ 3.3.1 (`com.jcdecaux.vls.lyon`, Alamofire) et sur le site Angular `velov.grandlyon.com` | Requêtes/réponses réelles : auth Keycloak, achat de ticket, déverrouillage d'un vélo, trajet complet, statistiques, favoris, logout, **création de compte**. ~1 000 requêtes vers `api.cyclocity.fr`, ~190 vers `iam.cyclocity.fr`.                 |
-| **Bundle JavaScript du site web** (`main-*.js`, `chunk-*.js`, capturé)                                                                                                 | La table de configuration complète des endpoints du front (~110 routes avec leur `Content-Type`/version), les énumérations (statuts, types de process, alertes...), les paramètres obligatoires des process, la sérialisation typée des paramètres. |
-| **Thème Keycloak `vls-lyon`** (`device.js`, `authChecker.js`, `broprint.js`)                                                                                           | Génération du `device_id` (empreinte navigateur), polling de session.                                                                                                                                                                               |
-| Décodage des JWT (`Taknv1` compressé, tokens Keycloak)                                                                                                                 | Permissions du client token, liste des contrats/villes, durées de vie.                                                                                                                                                                              |
-| **APK Android officiel 3.3.10** (`com.jcdecaux.vls.lyon`, mars 2026, `apktool d`)                                                                                      | Le code de l'app courante : interfaces Retrofit (routes, méthodes, media-types), modèles des corps de requête, énumérations de notifications push. Sert à documenter ce que les captures n'ont pas exercé (notation d'un vélo, types de défauts).   |
-| [Pikari0/doc_velov_api](https://github.com/Pikari0/doc_velov_api) (2018)                                                                                               | Code décompilé de l'ancienne app Android (Retrofit) : endpoints supplémentaires, ancien flow `/identities`.                                                                                                                                         |
-| [Fyroeo/VLSKit](https://github.com/Fyroeo/VLSKit) (Swift, juil. 2026) et son [`API_REFERENCE.md`](https://github.com/Fyroeo/VLSKit/blob/main/API_REFERENCE.md)         | Client complet reconstruit depuis l'app Android : endpoints supplémentaires (bookings, trace GPS, `via`, promocode, parkings), énumérations, comportements d'erreur.                                                                                |
-| Une dizaine d'autres projets communautaires (Nantes, Dublin, Valence, Bruxelles, Ljubljana..., § 13)                                                                   | Confirment que la même API sert toutes les villes ; variantes de headers/versions.                                                                                                                                                                  |
-| Documentation JCDecaux Developer, GBFS Grand Lyon, transport.data.gouv.fr                                                                                              | Sources officielles pour les stations (§ 10).                                                                                                                                                                                                       |
+| Source                                                                                                                                                                                             | Ce qu'elle apporte                                                                                                                                                                                                                                                |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **13 sessions Charles Proxy** (fév.-mars 2026, puis sept. 2026) sur l'app iOS _Vélo'v officiel_ 3.3.1 puis 3.6.1 (`com.jcdecaux.vls.lyon`, Alamofire) et sur le site Angular `velov.grandlyon.com` | Requêtes/réponses réelles : auth Keycloak, **connexion Google / Apple**, achat de ticket, déverrouillage d'un vélo, trajet complet, statistiques, favoris, logout, **création de compte**. ~1 250 requêtes vers `api.cyclocity.fr`, ~230 vers `iam.cyclocity.fr`. |
+| **Bundle JavaScript du site web** (`main-*.js`, `chunk-*.js`, capturé)                                                                                                                             | La table de configuration complète des endpoints du front (~110 routes avec leur `Content-Type`/version), les énumérations (statuts, types de process, alertes...), les paramètres obligatoires des process, la sérialisation typée des paramètres.               |
+| **Thème Keycloak `vls-lyon`** (`device.js`, `authChecker.js`, `broprint.js`)                                                                                                                       | Génération du `device_id` (empreinte navigateur), polling de session.                                                                                                                                                                                             |
+| Décodage des JWT (`Taknv1` compressé, tokens Keycloak)                                                                                                                                             | Permissions du client token, liste des contrats/villes, durées de vie.                                                                                                                                                                                            |
+| **APK Android officiel 3.3.10** (`com.jcdecaux.vls.lyon`, mars 2026, `apktool d`)                                                                                                                  | Le code de l'app courante : interfaces Retrofit (routes, méthodes, media-types), modèles des corps de requête, énumérations de notifications push. Sert à documenter ce que les captures n'ont pas exercé (notation d'un vélo, types de défauts).                 |
+| [Pikari0/doc_velov_api](https://github.com/Pikari0/doc_velov_api) (2018)                                                                                                                           | Code décompilé de l'ancienne app Android (Retrofit) : endpoints supplémentaires, ancien flow `/identities`.                                                                                                                                                       |
+| [Fyroeo/VLSKit](https://github.com/Fyroeo/VLSKit) (Swift, juil. 2026) et son [`API_REFERENCE.md`](https://github.com/Fyroeo/VLSKit/blob/main/API_REFERENCE.md)                                     | Client complet reconstruit depuis l'app Android : endpoints supplémentaires (bookings, trace GPS, `via`, promocode, parkings), énumérations, comportements d'erreur.                                                                                              |
+| Une dizaine d'autres projets communautaires (Nantes, Dublin, Valence, Bruxelles, Ljubljana..., § 13)                                                                                               | Confirment que la même API sert toutes les villes ; variantes de headers/versions.                                                                                                                                                                                |
+| Documentation JCDecaux Developer, GBFS Grand Lyon, transport.data.gouv.fr                                                                                                                          | Sources officielles pour les stations (§ 10).                                                                                                                                                                                                                     |
 
 ### 1.1 Méthodologie de capture (Charles Proxy)
 
-**Montage de base (Mac + iPhone sur le même Wi-Fi)** : c'est ainsi qu'ont été faites les 12 sessions de ce document :
+**Montage de base (Mac + iPhone sur le même Wi-Fi)** : c'est ainsi qu'ont été faites les 13 sessions de ce document :
 
 1. Sur le Mac : Charles Proxy, port `8888` (_Proxy > Proxy Settings_), **SSL Proxying** activé pour `*.cyclocity.fr`, `api.jcdecaux.com`, `velov.grandlyon.com` (_Proxy > SSL Proxying Settings > Include_). Inutile de tout intercepter : le reste (Apple, Firebase, Bugsnag, Matomo) fait du bruit.
 2. Sur l'iPhone : _Réglages > Wi-Fi > (réseau) > Configurer le proxy > Manuel_, hôte = IP du Mac, port `8888`. Puis ouvrir `chls.pro/ssl` dans Safari pour installer le certificat racine Charles, l'**installer** (_Réglages > Général > VPN et gestion de l'appareil_) puis l'**approuver** (_Réglages > Général > Informations > Réglages des certificats_). L'app Vélo'v n'a pas de certificate pinning : tout passe.
@@ -165,7 +165,7 @@ flowchart LR
 - **Contrat Lyon** : `lyon` -> toutes les routes métier sont préfixées `/contracts/lyon/...`
 - **Identité** : Keycloak, `https://iam.cyclocity.fr/realms/vls-default`
 - **Backend** : le contrat Lyon est de type `VLS2` (feature `vls.type`), l'ancien système « Kiwi » subsiste comme référentiel externe (`externalSrc: "KIWI"`, `kiwiId`, `subtypeKiwiId`).
-- **User-Agent** de l'app officielle : `Velov/3.3.1 (com.jcdecaux.vls.lyon; build:030301; iOS 26.3.0) Alamofire/5.10.2` (aucun contrôle de User-Agent constaté).
+- **User-Agent** de l'app officielle : `Velov/3.3.1 (com.jcdecaux.vls.lyon; build:030301; iOS 26.3.0) Alamofire/5.10.2`, puis `Velov/3.6.1 (com.jcdecaux.vls.lyon; build:030601; iOS 27.0.0) Alamofire/5.10.2` en septembre 2026 (aucun contrôle de User-Agent constaté). Les appels au token endpoint Keycloak partent hors Alamofire, en `Velov/030601 CFNetwork/... Darwin/27.0.0`.
 
 ---
 
@@ -324,7 +324,8 @@ Détail des requêtes et des réponses HTML :
         &state={state}&nonce={nonce}
    <- 200 HTML : <form id="kc-form-login" action="https://iam.cyclocity.fr/realms/vls-default/login-actions/authenticate?session_code=...&execution=...&client_id=vls-ios-lyon&tab_id=...&client_data=...">
         champs : username, password (placeholder « Votre code secret (6 chiffres) »), credentialId (hidden, vide)
-        liens : .../login-actions/reset-credentials (mot de passe oublié), .../login-actions/registration (créer un compte)
+        liens : .../login-actions/reset-credentials (mot de passe oublié), .../login-actions/registration (créer un compte),
+                .../broker/lyon-google/login et .../broker/lyon-apple/login (connexion Google / Apple, voir plus bas)
 
 2. POST {action du formulaire}&kc_locale=fr           (application/x-www-form-urlencoded)
         username={email}&password={code 6 chiffres}&credentialId=
@@ -398,7 +399,7 @@ GET /realms/vls-default/protocol/openid-connect/logout
 <- 302 Location: cyclocity-kc://https://velov.grandlyon.com/openid_connect_logout?state=...
 ```
 
-Le schéma custom `cyclocity-kc://` est intercepté par l'app. Un logout par `POST .../logout` avec `refresh_token` fonctionne aussi mais **ne libère pas toujours l'association device**, d'où l'erreur « déjà en cours d'utilisation » à la reconnexion : utilisez `id_token_hint`.
+Le schéma custom `cyclocity-kc://` est intercepté par l'app ; la 3.6.1 raccourcit la valeur en `post_logout_redirect_uri=cyclocity-kc://openid_connect_logout` (les deux formes sont acceptées, `302` vers la valeur envoyée). Un logout par `POST .../logout` avec `refresh_token` fonctionne aussi mais **ne libère pas toujours l'association device**, d'où l'erreur « déjà en cours d'utilisation » à la reconnexion : utilisez `id_token_hint`.
 
 #### Création de compte (observée, session 12)
 
@@ -423,6 +424,42 @@ L'inscription se fait **entièrement dans Keycloak** ; le compte Cyclocity est c
 ```
 
 La complétion du profil (nom, prénom, date de naissance, adresse, téléphone) passe ensuite par `PATCH /contracts/lyon/accounts/{id}` (§ 5.3) et l'enregistrement d'une CB par un process `REGISTER_PAYMENT_METHOD` (§ 6).
+
+#### Connexion par Google ou Apple (observée, session 13, app 3.6.1)
+
+La page de login Keycloak propose deux **identity providers** (brokers), `lyon-google` et `lyon-apple`. Le flow reste celui de l'app (PKCE, `client_id=vls-ios-lyon`, même `redirect_uri`) ; seule l'étape « formulaire de login » est remplacée par un aller-retour chez le fournisseur, et **le formulaire `device_id` est rejoué après le retour** (`post-broker-login`) : la politique « 1 compte = 1 appareil » s'applique aussi aux comptes sociaux.
+
+```text
+1. GET  /realms/vls-default/protocol/openid-connect/auth?client_id=vls-ios-lyon&...          (comme ci-dessus)
+   <- 200 HTML, liens <a href="/realms/vls-default/broker/lyon-google/login?client_id=vls-ios-lyon&tab_id=...&client_data=...&session_code=...">
+2. GET  /realms/vls-default/broker/lyon-google/login?client_id=...&tab_id=...&client_data=...&session_code=...
+   <- 303 Location: https://accounts.google.com/o/oauth2/v2/auth?scope=openid+profile+email&state={state Keycloak}&...
+      (Apple : 303 Location: https://appleid.apple.com/auth/authorize?response_mode=form_post&scope=openid+name+email&...)
+3. (consentement chez le fournisseur)
+   Google : GET  /realms/vls-default/broker/lyon-google/endpoint?state=...&code=...&scope=...   -> 302
+   Apple  : POST /realms/vls-default/broker/lyon-apple/endpoint  state=...&code=...  (form_post) -> 302
+4. Première connexion avec ce fournisseur seulement :
+   GET /realms/vls-default/login-actions/first-broker-login?client_id=...&tab_id=...&client_data=...  -> 302
+   GET /realms/vls-default/broker/after-first-broker-login?session_code=...&client_id=...&tab_id=...   -> 302
+   (aucun formulaire ni vérification d'email : l'utilisateur Keycloak est créé sans intervention)
+5. GET  /realms/vls-default/login-actions/post-broker-login?client_id=...&tab_id=...&client_data=...
+   <- 200 HTML : le même <form id="vls-form-device-id"> qu'au login par mot de passe
+   POST /realms/vls-default/login-actions/post-broker-login?session_code=...&execution=...   device_id={identifiant stable}
+   <- 302 Location: .../broker/after-post-broker-login?session_code=...&client_id=...&client_data=...
+   GET  .../broker/after-post-broker-login?...
+   <- 302 Location: https://velov.grandlyon.com/openid_connect_login?state=...&session_state=...&iss=...&code={authorization_code}
+6. POST /token (grant_type=authorization_code, code, code_verifier...)   -> tokens, comme au login par mot de passe
+```
+
+Côté API, le compte Cyclocity est créé **au premier `GET /accounts/{email}/id`** qui suit (`createdAt` = l'instant du login), pré-rempli avec ce que le fournisseur transmet :
+
+- `email` = celui du profil Google, ou l'**adresse relais** `xxxxxxxxxx@privaterelay.appleid.com` si l'utilisateur a choisi « Masquer mon adresse » chez Apple : c'est cette adresse que porte le token Keycloak et que l'app résout avec `/accounts/{email}/id`, pas l'adresse Apple réelle ;
+- `firstName` / `lastName` remplis, `defaultLocale` repris du fournisseur (`"en"` observé via Google), `completion: 0.4`, `optInSystem` / `optInPartner: "UNSEEN"`, `address: {}` ;
+- `GET .../payment` -> `{ paymentValid: false }`, `GET .../rewards/` -> `404 rewards.exception.notfound.account`, `GET .../alerts` -> `[NO_VALID_SUBSCRIPTIONS]` (comme un compte créé par le formulaire, § précédent).
+
+Un compte créé ainsi n'a vraisemblablement pas de code secret tant que l'utilisateur n'en définit pas un via `.../login-actions/reset-credentials` (comportement standard de Keycloak, non testé) : le formulaire `kc-form-login` ne le connecte donc pas. Le logout est le même (`GET .../logout?id_token_hint=...`, § 7.5).
+
+Pour sauter la page de login et partir directement chez le fournisseur, `GET .../auth` accepte le paramètre standard `kc_idp_hint=lyon-google` ou `kc_idp_hint=lyon-apple` : Keycloak répond alors `303 Location: .../broker/{alias}/login?session_code=...&client_id=vls-ios-lyon&tab_id=...` sans servir le formulaire (vérifié par requête directe le 15/09/2026). Le `redirect_uri` reste le seul autorisé, `https://velov.grandlyon.com/openid_connect_login` : tout schéma custom (`cyclocity-kc://...`, `love://...`) est refusé (`400 Paramètre invalide : redirect_uri`), même si l'app utilise `cyclocity-kc://` en `post_logout_redirect_uri`.
 
 ### 3.3 Requêtes authentifiées : résumé
 
@@ -484,33 +521,33 @@ La plupart des ressources sont versionnées **par le header `Accept`** (et `Cont
 
 Table de référence (versions du front web + observations mobile) :
 
-| Ressource                | `Accept` / `Content-Type`                                                               | Endpoints                                                                                          |
-| ------------------------ | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| Compte                   | `application/vnd.account.v4+json` (le front déclare aussi un `v3` pour `GET /accounts`) | `accounts/{id}`, `/alerts`, `/cgau`, `/offers`, `/offerGroups/{g}/offers`, `/stationbookmarks/{s}` |
-| Abonnements              | `application/vnd.subscription.v6+json`                                                  | `subscriptions`, `/statuses`, `/rentbike`                                                          |
-| Offres de renouvellement | `application/vnd.renewalOffer.v2+json`                                                  | `subscriptions/{s}/renewaloffers`                                                                  |
-| Trajets                  | `application/vnd.trip.v5+json`                                                          | `trips`, `trips/ongoing`, `POST .../trips`, `POST .../trips/{tripId}/rate`                         |
-| Offres                   | `application/vnd.offer.v2+json`                                                         | `offers`, `offers/{id}`, `offers/{id}/price`, `offerGroups`, `offerGroups/{g}/offers`, `/picture`  |
-| Stations                 | `application/vnd.station.v4+json`                                                       | `stations`, `stations/{n}`                                                                         |
-| Vélos                    | `application/vnd.bikes.v3+json` (mobile) / `v4` (web)                                   | `bikes`                                                                                            |
-| Cartes partenaires       | `application/vnd.card.v3+json`                                                          | `cards/search`                                                                                     |
-| Modèles de vélo (VLD)    | `application/vnd.bikemodel.v1+json`                                                     | `accounts/{id}/bikemodel`                                                                          |
-| Solde                    | `application/vnd.balance.v1+json`                                                       | `balance`                                                                                          |
-| Paiement                 | `application/vnd.payment.v3+json`                                                       | `payment`, `payment/mandate`                                                                       |
-| Checkout                 | `application/vnd.pay.v1+json`                                                           | `pay/checkout`, `pay/payment-infos/register`                                                       |
-| Ventes                   | `application/vnd.sale.v1+json`                                                          | `sales`                                                                                            |
-| Transactions             | `application/vnd.transaction.v1+json`                                                   | `transactions`, `/{tx}`, `/{tx}/bill`                                                              |
-| Process                  | `application/vnd.processes.v2+json`                                                     | `processes`, `processes/{id}`, `POST .../packages`                                                 |
-| Statistiques             | `application/vnd.stats.v1+json`                                                         | `stats`                                                                                            |
-| Récompenses              | `application/vnd.rewards.v5+json`                                                       | `rewards`, `rewards/configurations`                                                                |
-| FAQ / topics             | `application/vnd.faq.v2+json` / `application/vnd.topic.v2+json`                         | `faqs/search`, `faqs/{id}`, `topics`                                                               |
-| CGU                      | `application/vnd.cgau.v2+json`                                                          | `cgau`, `cgau/{type}/valid`, `.../file`, `.../versions/{v}`                                        |
-| Documents / assets       | `application/vnd.document.v3+json`                                                      | `assets/{id}`, `accounts/{id}/documents/{id}`                                                      |
-| Boutiques                | `application/vnd.shop.v1+json`                                                          | `shops`                                                                                            |
-| Types de défauts         | `application/vnd.defect-type.v1+json`                                                   | `defect-types`                                                                                     |
-| Devices (push)           | `application/vnd.message.v2+json` (`Content-Type`)                                      | `POST/DELETE .../devices`                                                                          |
-| Fil d'actus              | `application/rss+xml`                                                                   | `news/feed/{platform}`                                                                             |
-| Réservations             | (réponse `application/booking+json`)                                                    | `bookings`                                                                                         |
+| Ressource                | `Accept` / `Content-Type`                                                                                                                | Endpoints                                                                                          |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Compte                   | `application/vnd.account.v4+json` (le front déclare aussi un `v3` pour `GET /accounts`)                                                  | `accounts/{id}`, `/alerts`, `/cgau`, `/offers`, `/offerGroups/{g}/offers`, `/stationbookmarks/{s}` |
+| Abonnements              | `application/vnd.subscription.v6+json`                                                                                                   | `subscriptions`, `/statuses`, `/rentbike`                                                          |
+| Offres de renouvellement | `application/vnd.renewalOffer.v2+json`                                                                                                   | `subscriptions/{s}/renewaloffers`                                                                  |
+| Trajets                  | `application/vnd.trip.v5+json` (ce document) ; l'app 3.6.1 demande `application/vnd.trip.v6+json` sur `trips` et `trips/ongoing` (§ 5.6) | `trips`, `trips/ongoing`, `POST .../trips`, `POST .../trips/{tripId}/rate`                         |
+| Offres                   | `application/vnd.offer.v2+json`                                                                                                          | `offers`, `offers/{id}`, `offers/{id}/price`, `offerGroups`, `offerGroups/{g}/offers`, `/picture`  |
+| Stations                 | `application/vnd.station.v4+json`                                                                                                        | `stations`, `stations/{n}`                                                                         |
+| Vélos                    | `application/vnd.bikes.v3+json` (mobile) / `v4` (web)                                                                                    | `bikes`                                                                                            |
+| Cartes partenaires       | `application/vnd.card.v3+json`                                                                                                           | `cards/search`                                                                                     |
+| Modèles de vélo (VLD)    | `application/vnd.bikemodel.v1+json`                                                                                                      | `accounts/{id}/bikemodel`                                                                          |
+| Solde                    | `application/vnd.balance.v1+json`                                                                                                        | `balance`                                                                                          |
+| Paiement                 | `application/vnd.payment.v3+json`                                                                                                        | `payment`, `payment/mandate`                                                                       |
+| Checkout                 | `application/vnd.pay.v1+json`                                                                                                            | `pay/checkout`, `pay/payment-infos/register`                                                       |
+| Ventes                   | `application/vnd.sale.v1+json` (l'app l'envoie en `Content-Type` sur le `GET` ; la réponse porte ce type)                                | `sales`                                                                                            |
+| Transactions             | `application/vnd.transaction.v1+json`                                                                                                    | `transactions`, `/{tx}`, `/{tx}/bill`                                                              |
+| Process                  | `application/vnd.processes.v2+json`                                                                                                      | `processes`, `processes/{id}`, `POST .../packages`                                                 |
+| Statistiques             | `application/vnd.stats.v1+json`                                                                                                          | `stats`                                                                                            |
+| Récompenses              | `application/vnd.rewards.v5+json`                                                                                                        | `rewards`, `rewards/history`, `rewards/configurations`                                             |
+| FAQ / topics             | `application/vnd.faq.v2+json` / `application/vnd.topic.v2+json`                                                                          | `faqs/search`, `faqs/{id}`, `topics`                                                               |
+| CGU                      | `application/vnd.cgau.v2+json`                                                                                                           | `cgau`, `cgau/{type}/valid`, `.../file`, `.../versions/{v}`                                        |
+| Documents / assets       | `application/vnd.document.v3+json`                                                                                                       | `assets/{id}`, `accounts/{id}/documents/{id}`                                                      |
+| Boutiques                | `application/vnd.shop.v1+json`                                                                                                           | `shops`                                                                                            |
+| Types de défauts         | `application/vnd.defect-type.v1+json`                                                                                                    | `defect-types`                                                                                     |
+| Devices (push)           | `application/vnd.message.v2+json` (`Content-Type`)                                                                                       | `POST/DELETE .../devices`                                                                          |
+| Fil d'actus              | `application/rss+xml`                                                                                                                    | `news/feed/{platform}`                                                                             |
+| Réservations             | (réponse `application/booking+json`)                                                                                                     | `bookings`                                                                                         |
 
 ### 4.2 Erreurs et dépannage
 
@@ -520,7 +557,7 @@ Format JSON standard, doublé d'un header **`Bloot-Error-Code`** :
 { "code": "stats.exception.stats.not.found", "message": "No stats found" }
 ```
 
-Codes rencontrés : `auth.error.token.expiredRefreshToken` (401), `stats.exception.stats.not.found` (404), `document.exception.notfound` (404), `rewards.exception.notfound.account` (404), `identities.exception.bad.logon` (401 via redirect). Codes présents dans le front : `accounts.exception.conflict.account.email.exist`, `accounts.exception.notacceptable.account.phone.invalid`, `contracts.exception.in.maintenance.contract`, `pay.exception.ingenico.payment-methods.rejected`, `pre-authorization.exception`.
+Codes rencontrés : `auth.error.token.expiredRefreshToken` (401), `stats.exception.stats.not.found` (404), `document.exception.notfound` (404), `rewards.exception.notfound.account` (404), `accounts.exception.notfound.searched.periods` (404, § 5.5), `identities.exception.bad.logon` (401 via redirect). Codes présents dans le front : `accounts.exception.conflict.account.email.exist`, `accounts.exception.notacceptable.account.phone.invalid`, `contracts.exception.in.maintenance.contract`, `pay.exception.ingenico.payment-methods.rejected`, `pre-authorization.exception`.
 
 Un `403` avec page HTML Tomcat signale un `Identity` manquant/invalide ; un `401` sans corps un `Taknv1` manquant.
 
@@ -922,7 +959,7 @@ curl -s "$A/bookings" -H "Authorization: Taknv1 $TAKN" -H "Identity: $IDENTITY"
 
 **Éligibilité** : `[{ "offerId": 1101252, "eligible": true, "eligibilityDetails": "ELIGIBLE" }, { "offerId": 1101203, "eligible": false, "eligibilityDetails": "OFFER_AGE_INVALID" }]`. Valeurs : `ELIGIBLE`, `OFFER_AGE_INVALID`, `ALREADY_VALID_SUBSCRIPTION`, `BATTERY_SUBSCRIPTION_INELIGIBLE`.
 
-**Devices** : `POST .../devices` `Content-Type: application/vnd.message.v2+json` `{"platform":"IOS","deviceToken":"<token FCM>"}` -> `200` echo. `DELETE` avec le même corps -> `200` echo (à faire **avant** le logout Keycloak).
+**Devices** : `POST .../devices` `Content-Type: application/vnd.message.v2+json` `{"platform":"IOS","deviceToken":"<token FCM>"}` -> `200` echo. `DELETE` avec le même corps -> `200` echo. L'app 3.3.1 le fait **avant** le logout Keycloak, la 3.6.1 une seconde **après** (§ 7.5) : les deux ordres passent.
 
 ### 5.4 Offres, groupes d'offres, badges
 
@@ -1071,20 +1108,20 @@ Structure : `{ id, name, description, type: OWNER|EXTERNAL|TICKET|NO_BADGE, paym
 
 ### 5.5 Abonnements
 
-| Méth.   | Endpoint                                                                    | Auth | Description                                                         | Statut  |
-| ------- | --------------------------------------------------------------------------- | ---- | ------------------------------------------------------------------- | ------- |
-| `GET`   | `/accounts/{id}/subscriptions[?periods=...&type=...&isLocked=...&sort=...]` | C+I  | Liste des abonnements                                               | ✅      |
-| `GET`   | `/accounts/{id}/subscriptions/{subId}`                                      | C+I  | Détail                                                              | ✅      |
-| `GET`   | `/accounts/{id}/subscriptions/{subId}/statuses`, `/statuses/{status}`       | C+I  | Statuts                                                             | ✅ / 🌐 |
-| `GET`   | `/accounts/{id}/subscriptions/{subId}/rentbike`                             | C+I  | « Une location est-elle en cours ? » (booléen)                      | 🌐 📚   |
-| `GET`   | `/accounts/{id}/subscriptions/{subId}/renewaloffers`                        | C+I  | Offres de renouvellement possibles (`vnd.renewalOffer.v2`)          | 🌐      |
-| `PATCH` | `/accounts/{id}/subscriptions/{subId}`                                      | C+I  | Auto-renouvellement                                                 | 📚      |
-| `POST`  | `/accounts/{id}/subscriptions/{subId}/badges`                               | C+I  | Changer de badge (le front web passe par un process `CHANGE_BADGE`) | 📚      |
-| `POST`  | `/accounts/{id}/subscriptions/{subId}/periods/{periodId}/reports`           | C+I  | **Reçu PDF** d'une période (base64), sans corps                     | ✅      |
-| `GET`   | `/accounts/{id}/subscriptions/{subId}/receipts`                             | C+I  | Reçu                                                                | 📚      |
-| `GET`   | `/subscriptions/{kiwiId}/email`                                             | C    | Email lié à un abonnement                                           | 📚      |
-| `POST`  | `/accounts/{id}/subscriptions/{subId}/via` `{ "stationId" }`                | C+I  | « 15 minutes de plus » quand la station d'arrivée est pleine        | 🧩      |
-| `GET`   | `/accounts/{id}/periods?periodIds=...`                                      | C+I  | Périodes par identifiants                                           | 🧩      |
+| Méth.   | Endpoint                                                                    | Auth | Description                                                                                          | Statut   |
+| ------- | --------------------------------------------------------------------------- | ---- | ---------------------------------------------------------------------------------------------------- | -------- |
+| `GET`   | `/accounts/{id}/subscriptions[?periods=...&type=...&isLocked=...&sort=...]` | C+I  | Liste des abonnements                                                                                | ✅       |
+| `GET`   | `/accounts/{id}/subscriptions/{subId}`                                      | C+I  | Détail                                                                                               | ✅       |
+| `GET`   | `/accounts/{id}/subscriptions/{subId}/statuses`, `/statuses/{status}`       | C+I  | Statuts                                                                                              | ✅ / 🌐  |
+| `GET`   | `/accounts/{id}/subscriptions/{subId}/rentbike`                             | C+I  | « Une location est-elle en cours ? » (booléen)                                                       | 🌐 📚    |
+| `GET`   | `/accounts/{id}/subscriptions/{subId}/renewaloffers`                        | C+I  | Offres de renouvellement possibles (`vnd.renewalOffer.v2`)                                           | 🌐       |
+| `PATCH` | `/accounts/{id}/subscriptions/{subId}`                                      | C+I  | Auto-renouvellement                                                                                  | 📚       |
+| `POST`  | `/accounts/{id}/subscriptions/{subId}/badges`                               | C+I  | Changer de badge (le front web passe par un process `CHANGE_BADGE`)                                  | 📚       |
+| `POST`  | `/accounts/{id}/subscriptions/{subId}/periods/{periodId}/reports`           | C+I  | **Reçu PDF** d'une période (base64), sans corps                                                      | ✅       |
+| `GET`   | `/accounts/{id}/subscriptions/{subId}/receipts`                             | C+I  | Reçu                                                                                                 | 📚       |
+| `GET`   | `/subscriptions/{kiwiId}/email`                                             | C    | Email lié à un abonnement                                                                            | 📚       |
+| `POST`  | `/accounts/{id}/subscriptions/{subId}/via` `{ "stationId" }`                | C+I  | « 15 minutes de plus » quand la station d'arrivée est pleine                                         | 🧩       |
+| `GET`   | `/accounts/{id}/periods?periodIds=a,b,c`                                    | C+I  | Périodes par identifiants ; seul un `404 accounts.exception.notfound.searched.periods` a été observé | ✅ (404) |
 
 **Exemples :**
 
@@ -1100,11 +1137,12 @@ curl -s -X POST "$S/$SUB_ID/periods/$PERIOD_ID/reports" -H "Authorization: Taknv
 **Paramètres de requête** :
 
 - `periods` = `CURRENT`, `PAST`, `FUTURE`, combinables (`periods=PAST,CURRENT,FUTURE`). **Sans `periods`, seuls les abonnements courants sont renvoyés** (`[]` si aucun).
-- `type` = `ST` | `LT` (| `UB`, `BATTERY`, `PARKING`).
+- `type` = `ST` | `LT` | `UB` | `BATTERY` | `PARKING` (les quatre derniers sont interrogés un à un par l'app 3.6.1).
+- `noStatus` (répétable) : exclut les abonnements portant ce statut ; observé avec `CLOSED`, `INCOMPLETE_FILE` et `NOT_VALID_YET` (`?noStatus=CLOSED&noStatus=INCOMPLETE_FILE&noStatus=NOT_VALID_YET&periods=CURRENT&type=LT`, app 3.6.1).
 - `isLocked=0` : exclut les abonnements verrouillés (expirés/clos).
 - `sort=DESC` (front web).
 
-Patterns de l'app : écran station -> `?isLocked=0&periods=CURRENT&type=ST` **et** `...&type=LT` en parallèle ; onglet « mes abonnements » -> `?periods=FUTURE`, `?periods=CURRENT`, `?periods=PAST` en parallèle ; site web -> `?periods=CURRENT,FUTURE,PAST&sort=DESC`.
+Patterns de l'app : écran station -> `?isLocked=0&periods=CURRENT&type=ST` **et** `...&type=LT` en parallèle ; onglet « mes abonnements » -> `?periods=FUTURE`, `?periods=CURRENT`, `?periods=PAST` en parallèle ; site web -> `?periods=CURRENT,FUTURE,PAST&sort=DESC`. L'app 3.6.1 (sept. 2026) ajoute à l'ouverture du profil `?noStatus=CLOSED&periods=CURRENT|FUTURE&type=LT|BATTERY|PARKING|UB` (8 requêtes en parallèle) puis `?noStatus=CLOSED&noStatus=INCOMPLETE_FILE&noStatus=NOT_VALID_YET&periods=CURRENT|PAST&type=LT|PARKING` (4 requêtes) ; toutes ont répondu `[]` sur un compte sans abonnement annuel.
 
 **Objet abonnement** (`Accept: application/vnd.subscription.v6+json`) :
 
@@ -1150,16 +1188,18 @@ Patterns de l'app : écran station -> `?isLocked=0&periods=CURRENT&type=ST` **et
 
 **Reçu PDF** : `POST .../periods/{periodId}/reports`. Avec `Accept: application/json` -> `{ "id": 0, "filename": "{periodId}-period-receipt.pdf", "mimeType": "application/pdf", "translations": { "id": 0, "locale": "fr_FR", "content": "<PDF base64>" } }` ; sans `Accept`, le PDF brut (`%PDF-...`) est renvoyé directement. Vérifié live.
 
+**Périodes par identifiants** : `GET /accounts/{id}/periods?periodIds={id1},{id2},...` (virgules encodées `%2C`). L'app 3.6.1 l'appelle avec les `periodId` tirés de `GET /sales?infoType=PERIOD&natures=SUBSCRIPTION&status=PAID` (§ 5.7), en envoyant `Content-Type: application/vnd.subscription.v6+json` sans `Accept` précis. Seule réponse observée : `404 { "code": "accounts.exception.notfound.searched.periods", "message": "Listed periods for account could not be found" }` pour cinq périodes de tickets `ST` clos ; la forme du `200` reste à observer.
+
 ### 5.6 Trajets et statistiques
 
-| Méth.  | Endpoint                                      | Auth | Description                              | Statut |
-| ------ | --------------------------------------------- | ---- | ---------------------------------------- | ------ |
-| `POST` | `/accounts/{id}/subscriptions/{subId}/trips`  | C+I  | **Déverrouiller un vélo**                | ✅     |
-| `GET`  | `/accounts/{id}/trips/ongoing`                | C+I  | Trajet en cours (`[]` sinon)             | ✅     |
-| `GET`  | `/accounts/{id}/trips`                        | C+I  | Historique (les plus récents en premier) | ✅     |
-| `GET`  | `/accounts/{id}/subscriptions/{kiwiId}/trips` | C+I  | Trajets d'un abonnement                  | 📚     |
-| `POST` | `/accounts/{id}/trips/{tripId}/rate`          | C+I  | Noter le vélo (5 points de fidélité)     | 📱     |
-| `GET`  | `/accounts/{id}/stats?...`                    | C+I  | Statistiques agrégées                    | ✅     |
+| Méth.  | Endpoint                                      | Auth | Description                                                                                                   | Statut  |
+| ------ | --------------------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------- | ------- |
+| `POST` | `/accounts/{id}/subscriptions/{subId}/trips`  | C+I  | **Déverrouiller un vélo**                                                                                     | ✅      |
+| `GET`  | `/accounts/{id}/trips/ongoing`                | C+I  | Trajet en cours (`[]` sinon)                                                                                  | ✅      |
+| `GET`  | `/accounts/{id}/trips[?status=...]`           | C+I  | Historique (les plus récents en premier) ; l'app 3.6.1 filtre `?status=FINISHED&status=ERROR&status=REVERSED` | ✅ live |
+| `GET`  | `/accounts/{id}/subscriptions/{kiwiId}/trips` | C+I  | Trajets d'un abonnement                                                                                       | 📚      |
+| `POST` | `/accounts/{id}/trips/{tripId}/rate`          | C+I  | Noter le vélo (5 points de fidélité)                                                                          | 📱      |
+| `GET`  | `/accounts/{id}/stats?...`                    | C+I  | Statistiques agrégées                                                                                         | ✅      |
 
 **Exemples :**
 
@@ -1252,6 +1292,8 @@ Après le `200`, la borne libère le vélo quelques secondes ; si le vélo n'est
 
 `duration` en **minutes arrondies au supérieur** ; `bikeType` `0` = mécanique, `1` = électrique ; `price`/`discount` en centimes ; `token` = code du trajet ; `origin: 4` = smartphone (valeur constante observée) ; `isRated` pilote l'invitation à noter le vélo (règle rewards `RATE_BIKE`). Statuts de trajet connus (VLSKit) : `REQUESTED, STARTED, FINISHED, REJECTED, TIMEOUT, PAUSED, AUTO_FINISHED, ERROR, WARNING, REVERSED` (`GET /trips?status=` filtre) ; champs supplémentaires possibles : `startStationName`, `endStationName`, `elecTripsNb`, `overchargeMaxTrips`, `overchargeAmount`. `transactionState` du déverrouillage : `NOT_CONNECTED, UNKNOW, UNSTARTED, RUNNING, OK, NOK, ABORT, TIME_OUT` ; `typeFrom` : `UNKNOWN, STATION_WITH_CREDENTIALS, STATION_WITH_BADGE, WEB, SYSTEM, SMARTPHONE, CARD`.
 
+**Version `v6` du media-type** : depuis l'app 3.6.1 (sept. 2026), `GET /trips` et `GET /trips/ongoing` sont demandés avec `Accept: application/vnd.trip.v6+json`, et le serveur répond dans ce type. La session 13 n'a capturé que des listes vides (`[]`) : les différences de shape avec le `v5` décrit ici ne sont pas connues. Vérifié live le 15/09/2026 sur un compte sans trajet : les deux `Accept` répondent `200` avec le type demandé en écho. Le filtre `status` est répétable : l'app liste l'historique avec `?status=FINISHED&status=ERROR&status=REVERSED`. Les trajets facturés se relisent aussi, avec leur détail (noms de stations, surcoût électrique), dans `GET /sales?infoType=TRIP` (§ 5.7).
+
 **Noter le vélo** : l'invitation n'est **pas** un push. Aucun des types de notification de l'app (`RIDE_START`, `RIDE_END`, `LONG_TRIP`, `FORGOTTEN_BATTERY`, `STATION_EVENT`) ne la déclenche ; c'est le champ `isRated: false` du dernier trajet, relu au retour dans l'app, qui l'affiche. La notation crédite **5 points** de fidélité (règle `RATE_BIKE`, § 5.8) et n'est possible qu'une fois par trajet.
 
 ```http
@@ -1274,7 +1316,7 @@ Content-Type: application/vnd.trip.v5+json
 
 Effet visible ensuite : le vélo porte un `rating: { value, count, lastRatingDateTime }` dans `GET /bikes` (§ 5.2), `value` étant le pourcentage de recommandation (`100.0` = recommandé par tous les votants).
 
-Route non exercée en capture : les 12 sessions ne contiennent aucun appel à `/rate` ni aucun trajet avec `isRated: true`. Méthode, chemin, media-type et forme du corps sont lus dans les interfaces Retrofit de l'app Android 3.3.10 (statut 📱).
+Route non exercée en capture : les 13 sessions ne contiennent aucun appel à `/rate` ni aucun trajet avec `isRated: true`. Méthode, chemin, media-type et forme du corps sont lus dans les interfaces Retrofit de l'app Android 3.3.10 (statut 📱).
 
 **Statistiques** : `GET /accounts/{id}/stats` (`Accept: application/vnd.stats.v1+json`) :
 
@@ -1289,18 +1331,18 @@ Aucun trajet sur la période -> `404 { "code": "stats.exception.stats.not.found"
 
 ### 5.7 Paiement, solde, transactions
 
-| Méth.  | Endpoint                                                                      | Auth | Description                                                                                                                                                | Statut   |
-| ------ | ----------------------------------------------------------------------------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| `GET`  | `/accounts/{id}/payment`                                                      | C+I  | Moyen de paiement enregistré                                                                                                                               | ✅       |
-| `GET`  | `/accounts/{id}/payment/mandate`                                              | C+I  | Mandat SEPA (PDF)                                                                                                                                          | 🌐       |
-| `GET`  | `/accounts/{id}/balance`                                                      | C+I  | Solde (`due`, `dueToControl`, `credit`, en centimes)                                                                                                       | ✅       |
-| `GET`  | `/accounts/{id}/transactions[?showRegulationId=true]`                         | C+I  | Transactions (prélèvements CB)                                                                                                                             | ✅       |
-| `GET`  | `/accounts/{id}/transactions/{txId}`                                          | C+I  | Détail + lignes `sales`                                                                                                                                    | ✅       |
-| `GET`  | `/accounts/{id}/transactions/{txId}/bill`                                     | C+I  | Facture PDF, **`406` avec `Accept: application/pdf`** (le bon media-type reste à trouver) ; le reçu d'abonnement passe par `POST .../periods/{id}/reports` | ⚠️ live  |
-| `GET`  | `/accounts/{id}/sales[?infoType=&natures=&saleDateAfter=&status=&direction=]` | C+I  | Toutes les ventes (`vnd.sale.v1`)                                                                                                                          | 🌐 📚 🧩 |
-| `GET`  | `/accounts/{id}/subscriptions/{kiwiId}/balance`                               | C+I  | Solde par abonnement                                                                                                                                       | 📚       |
-| `POST` | `/accounts/{id}/pay/checkout`                                                 | C+I  | Ouvre une **page de paiement hébergée Worldline** (enregistrement/changement de CB, 3-DS)                                                                  | ✅       |
-| `POST` | `/accounts/{id}/pay/payment-infos/register`                                   | C+I  | Enregistrement des infos de paiement                                                                                                                       | 🌐       |
+| Méth.  | Endpoint                                                                      | Auth | Description                                                                                                                                                | Statut  |
+| ------ | ----------------------------------------------------------------------------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `GET`  | `/accounts/{id}/payment`                                                      | C+I  | Moyen de paiement enregistré                                                                                                                               | ✅      |
+| `GET`  | `/accounts/{id}/payment/mandate`                                              | C+I  | Mandat SEPA (PDF)                                                                                                                                          | 🌐      |
+| `GET`  | `/accounts/{id}/balance`                                                      | C+I  | Solde (`due`, `dueToControl`, `credit`, en centimes)                                                                                                       | ✅      |
+| `GET`  | `/accounts/{id}/transactions[?showRegulationId=true]`                         | C+I  | Transactions (prélèvements CB)                                                                                                                             | ✅      |
+| `GET`  | `/accounts/{id}/transactions/{txId}`                                          | C+I  | Détail + lignes `sales`                                                                                                                                    | ✅      |
+| `GET`  | `/accounts/{id}/transactions/{txId}/bill`                                     | C+I  | Facture PDF, **`406` avec `Accept: application/pdf`** (le bon media-type reste à trouver) ; le reçu d'abonnement passe par `POST .../periods/{id}/reports` | ⚠️ live |
+| `GET`  | `/accounts/{id}/sales[?infoType=&natures=&saleDateAfter=&status=&direction=]` | C+I  | Lignes de vente (`vnd.sale.v1`) ; avec `infoType=TRIP`, chaque ligne embarque le **trajet facturé** (ci-dessous)                                           | ✅ live |
+| `GET`  | `/accounts/{id}/subscriptions/{kiwiId}/balance`                               | C+I  | Solde par abonnement                                                                                                                                       | 📚      |
+| `POST` | `/accounts/{id}/pay/checkout`                                                 | C+I  | Ouvre une **page de paiement hébergée Worldline** (enregistrement/changement de CB, 3-DS)                                                                  | ✅      |
+| `POST` | `/accounts/{id}/pay/payment-infos/register`                                   | C+I  | Enregistrement des infos de paiement                                                                                                                       | 🌐      |
 
 **Exemples :**
 
@@ -1310,6 +1352,10 @@ curl -s "$A/payment" -H "Authorization: Taknv1 $TAKN" -H "Identity: $IDENTITY" -
 curl -s "$A/balance" -H "Authorization: Taknv1 $TAKN" -H "Identity: $IDENTITY" -H 'Accept: application/vnd.balance.v1+json'
 curl -s "$A/transactions" -H "Authorization: Taknv1 $TAKN" -H "Identity: $IDENTITY" -H 'Accept: application/vnd.transaction.v1+json' | jq '.[] | {createdAt, nature, amount, status}'
 curl -s "$A/transactions/$TX_ID" -H "Authorization: Taknv1 $TAKN" -H "Identity: $IDENTITY" -H 'Accept: application/vnd.transaction.v1+json' | jq .sales
+curl -s "$A/sales?direction=DEBIT&infoType=TRIP&natures=CONSUMPTION&status=PAID" -H "Authorization: Taknv1 $TAKN" -H "Identity: $IDENTITY" -H 'Content-Type: application/vnd.sale.v1+json' \
+  | jq '.[] | .saleAdditionnalInfo.additionalInfos | {startDateTime, startStationName, endStationName, duration, price}'     # trajets facturés
+curl -s "$A/sales?infoType=PERIOD&natures=SUBSCRIPTION&status=PAID" -H "Authorization: Taknv1 $TAKN" -H "Identity: $IDENTITY" -H 'Content-Type: application/vnd.sale.v1+json' \
+  | jq '.[] | {date, amount, periodId: .saleAdditionnalInfo.additionalInfos.periodId}'                                      # périodes payées
 curl -s "$A/transactions/$TX_ID/bill" -H "Authorization: Taknv1 $TAKN" -H "Identity: $IDENTITY" -H 'Accept: application/pdf' -H 'Accept-Language: fr' -o facture.pdf
 curl -s -X POST "$A/pay/checkout" -H "Authorization: Taknv1 $TAKN" -H "Identity: $IDENTITY" -H 'Content-Type: application/vnd.pay.v1+json' -H 'Accept: application/vnd.pay.v1+json' \
   -d '{"returnUrl":"https://velov.grandlyon.com/","paymentMethods":["CB"]}'     # -> { id, redirectUrl } Worldline
@@ -1342,6 +1388,80 @@ curl -s -X POST "$A/pay/checkout" -H "Authorization: Taknv1 $TAKN" -H "Identity:
 Le détail ajoute `sales[]` : `{ id, contractCode, accountId, accountEmail, subscriptionId, externalRef, nature, date, createdAt, updatedAt, amount, direction: DEBIT|CREDIT, status, transactionId, subscriptionType, pankey, accountType, paybackAmount }`.
 `nature` (transaction et vente) : `SUBSCRIPTION` (achat), `RENEWAL` (renouvellement), `CONSUMPTION` (dépassement de temps), `CONSUMPTION_REDUCTION` (remise, `direction: CREDIT`, ex. points fidélité). Exemple observé : dépassement 100 c - remise 2 c -> transaction de 98 c.
 
+**Ventes** (`GET /accounts/{id}/sales`, observé avec l'app 3.6.1) : une ligne par vente, la même shape que `sales[]` du détail de transaction, **plus** `saleAdditionnalInfo` et `platform`. L'app envoie `Content-Type: application/vnd.sale.v1+json` avec `Accept: */*` ; la réponse est en `application/vnd.sale.v1+json`. Le même media-type en `Accept` fonctionne aussi (vérifié live le 15/09/2026). Paramètres (tous optionnels) :
+
+| Param           | Valeurs observées                                                                                           |
+| --------------- | ----------------------------------------------------------------------------------------------------------- |
+| `infoType`      | `TRIP` (ventes de consommation, avec le trajet) ou `PERIOD` (achats et renouvellements, avec le `periodId`) |
+| `natures`       | `CONSUMPTION`, `SUBSCRIPTION`                                                                               |
+| `status`        | `PAID`, `TO_INVOICE`, `TO_CONTROL` (répétable : `&status=PAID&status=TO_INVOICE&status=TO_CONTROL`)         |
+| `direction`     | `DEBIT` (ou `CREDIT`)                                                                                       |
+| `saleDateAfter` | ISO 8601 local sans zone (`2026-03-15T16:21:45`) ; l'app demande les six derniers mois                      |
+
+Les trois requêtes de l'app : `?direction=DEBIT&infoType=TRIP&natures=CONSUMPTION&status=PAID` (trajets facturés), `?infoType=TRIP&natures=CONSUMPTION&saleDateAfter={now - 6 mois}&status=PAID&status=TO_INVOICE&status=TO_CONTROL` (dépassements récents, y compris non encore prélevés) et `?infoType=PERIOD&natures=SUBSCRIPTION&status=PAID` (périodes d'abonnement payées, dont les `periodId` alimentent `GET /periods`, § 5.5).
+
+```json
+{
+  "id": "6a7b8c9d-...",
+  "contractCode": "lyon",
+  "accountId": "0f1e2d3c-...",
+  "accountEmail": "user@example.com",
+  "subscriptionId": "5e6f7a8b-...",
+  "externalRef": "12345678",
+  "nature": "CONSUMPTION",
+  "date": "2026-03-02T09:38:12",
+  "createdAt": "2026-03-02T09:38:14.76424",
+  "updatedAt": "2026-03-05T09:05:23.426392",
+  "amount": 100,
+  "direction": "DEBIT",
+  "status": "PAID",
+  "transactionId": "7e8f9a0b-...",
+  "subscriptionType": "ST",
+  "saleAdditionnalInfo": {
+    "id": "170000001",
+    "type": "TRIP",
+    "additionalInfos": {
+      "id": "3a4b5c6d-...",
+      "movementRef": "170000001",
+      "subscriptionId": "5e6f7a8b-...",
+      "subscriptionRef": "12345678",
+      "contractName": "lyon",
+      "accountId": "0f1e2d3c-...",
+      "status": "FINISHED",
+      "bikeNumber": 22743,
+      "bikeType": 1,
+      "startDateTime": "2026-03-02T09:32:14",
+      "startStation": 2002,
+      "startStationName": "2002 - BELLECOUR / ST EXUPÉRY",
+      "startStand": 12,
+      "endDateTime": "2026-03-02T09:38:12",
+      "endStation": 2001,
+      "endStationName": "2001 - BELLECOUR / RÉPUBLIQUE",
+      "endStand": 1,
+      "duration": 6,
+      "elecTripsNb": 1,
+      "price": 100,
+      "discount": 0,
+      "reducedPrice": 100,
+      "overchargeAmount": 100,
+      "overchargeMaxTrips": 0,
+      "rewardsEarned": 0,
+      "rewardsSpent": 0,
+      "offerId": 75171,
+      "litigious": false,
+      "isSpecial": false,
+      "isRated": false,
+      "token": "ABCDEFGHIJABCDEFGHIJ"
+    }
+  },
+  "pankey": "a1b2c3d4xxxx",
+  "accountType": "END_USER",
+  "paybackAmount": 0
+}
+```
+
+`saleAdditionnalInfo.type` vaut `TRIP` (`id` = `movementRef` du trajet, `additionalInfos` = le trajet, avec `startStationName`, `endStationName`, `elecTripsNb`, `overchargeAmount` et `overchargeMaxTrips` que `GET /trips` ne renvoie pas) ou `PERIOD` (`additionalInfos: { "periodId": "..." }`, la vente portant alors `platform: "MOBILE"`). Ici un trajet à Vélo'v électrique sur un ticket 1 trajet : 1 € dès la première minute (`overchargeAmount: 100`).
+
 **Checkout** (`Content-Type/Accept: application/vnd.pay.v1+json`) :
 
 ```json
@@ -1357,22 +1477,67 @@ Le détail ajoute `sales[]` : `{ id, contractCode, accountId, accountEmail, subs
 
 ### 5.8 Récompenses (programme fidélité)
 
-| Méth.   | Endpoint                                              | Auth | Description                        | Statut |
-| ------- | ----------------------------------------------------- | ---- | ---------------------------------- | ------ |
-| `GET`   | `/accounts/{id}/rewards`                              | C+I  | Solde de points                    | ✅     |
-| `PATCH` | `/accounts/{id}/rewards` `{"autoSpend": true\|false}` | C+I  | Utilisation automatique des points | ✅     |
-| `GET`   | `/rewards/configurations`                             | C    | Règles du programme                | ✅     |
-| `POST`  | `/accounts/{id}/rewards/consume/promocode`            | C+I  | Utiliser un code promo             | 🧩     |
+| Méth.   | Endpoint                                              | Auth | Description                                                     | Statut |
+| ------- | ----------------------------------------------------- | ---- | --------------------------------------------------------------- | ------ |
+| `GET`   | `/accounts/{id}/rewards`                              | C+I  | Solde de points                                                 | ✅     |
+| `PATCH` | `/accounts/{id}/rewards` `{"autoSpend": true\|false}` | C+I  | Utilisation automatique des points                              | ✅     |
+| `GET`   | `/accounts/{id}/rewards/history?page=0`               | C+I  | Historique des mouvements de points (page Spring, 200 par page) | ✅     |
+| `GET`   | `/rewards/configurations`                             | C    | Règles du programme                                             | ✅     |
+| `POST`  | `/accounts/{id}/rewards/consume/promocode`            | C+I  | Utiliser un code promo                                          | 🧩     |
 
 **Exemples :**
 
 ```bash
 curl -s "https://api.cyclocity.fr/contracts/lyon/accounts/$ACCOUNT_ID/rewards" -H "Authorization: Taknv1 $TAKN" -H "Identity: $IDENTITY" -H 'Accept: application/vnd.rewards.v5+json'
 curl -s -X PATCH "https://api.cyclocity.fr/contracts/lyon/accounts/$ACCOUNT_ID/rewards" -H "Authorization: Taknv1 $TAKN" -H "Identity: $IDENTITY" -H 'Content-Type: application/vnd.rewards.v5+json' -d '{"autoSpend":false}'
+curl -s "https://api.cyclocity.fr/contracts/lyon/accounts/$ACCOUNT_ID/rewards/history?page=0" -H "Authorization: Taknv1 $TAKN" -H "Identity: $IDENTITY" -H 'Accept: application/vnd.rewards.v5+json' | jq '.content[] | {createdAt, nature, direction, amount, reason}'
 curl -s "https://api.cyclocity.fr/contracts/lyon/rewards/configurations" -H "Authorization: Taknv1 $TAKN" -H 'Accept: application/vnd.rewards.v5+json'      # 415 sans cet Accept
 ```
 
 `GET /rewards` -> `{ "contractName": "lyon", "accountId": "...", "balance": 6, "autoSpend": true, "total": 30, "friendsInvitedCount": 0 }` (compte neuf -> `404 rewards.exception.notfound.account`). `PATCH` avec `Content-Type: application/vnd.rewards.v5+json` -> même objet.
+
+`GET /rewards/history?page=0` (`Accept: application/vnd.rewards.v5+json`, app 3.6.1) -> page Spring, du plus récent au plus ancien :
+
+```json
+{
+  "content": [
+    {
+      "id": "8b9c0d1e-...",
+      "accountRewardId": "e0f1a2b3-...",
+      "nature": "RULE_ACHIEVED",
+      "direction": "CREDIT",
+      "amount": 5,
+      "reason": "RATE_BIKE",
+      "reference": "null",
+      "createdAt": "2026-03-02T10:11:13.127166",
+      "updatedAt": "2026-03-02T10:11:13.127167",
+      "readStatus": "NOT_APPLICABLE"
+    },
+    {
+      "id": "9c0d1e2f-...",
+      "accountRewardId": "e0f1a2b3-...",
+      "nature": "CONSUMPTION",
+      "direction": "DEBIT",
+      "amount": 4,
+      "reason": "REDUCTION",
+      "reference": "3a4b5c6d-...",
+      "referenceType": "TRIP",
+      "createdAt": "2026-03-02T09:40:28.150156",
+      "updatedAt": "2026-03-02T09:40:28.150157",
+      "readStatus": "NOT_APPLICABLE"
+    }
+  ],
+  "totalElements": 2,
+  "totalPages": 1,
+  "size": 200,
+  "number": 0,
+  "numberOfElements": 2,
+  "first": true,
+  "last": true
+}
+```
+
+`nature` : `RULE_ACHIEVED` (crédit d'une règle, `reason` = son `name` : `RATE_BIKE`...) ou `CONSUMPTION` (débit, `reason: "REDUCTION"`, `reference` = id du trajet et `referenceType: "TRIP"`) ; la `reference` d'un crédit est la chaîne `"null"`. L'app 3.6.1 appelle `GET /accounts/{id}/rewards/` **avec un slash final** ; les deux formes répondent.
 
 `GET /rewards/configurations` -> `[{ "id", "contractName", "name", "type": "RULE"|"VALUATION", "i18nKey", "enable", "reward" }]` :
 
@@ -1559,6 +1724,8 @@ GET  api.jcdecaux.com/vls/v3/stations?contract=lyon&apiKey=...    -> carte (puis
 
 Si le client token est périmé : `POST /auth/access_tokens` -> `401 expiredRefreshToken` -> `POST /auth/environments/PRD/client_tokens`.
 
+Après un login (app 3.6.1) : `GET /accounts/{email}/id` **x4 en parallèle** (chaque module résout l'id de son côté), `POST /accounts/{id}/devices`, puis `trips/ongoing`, `/accounts/{id}`, `/alerts`, `/trips?status=FINISHED&status=ERROR&status=REVERSED`, `/payment`, `/rewards/`.
+
 ### 7.2 Écran station (avant déverrouillage)
 
 ```text
@@ -1605,6 +1772,8 @@ Timeline brute (heure locale de la capture ; les `startDateTime` de l'API sont e
 
 ### 7.4 Onglet profil / abonnements / paiements
 
+App 3.3.1 (sessions 7 à 10) :
+
 ```text
 GET /rewards -> /accounts/{id} -> /payment -> /alerts         (séquentiel, ~0,2 s d'écart)
 GET /subscriptions?periods=FUTURE + CURRENT + PAST + /offers  (parallèle)
@@ -1614,6 +1783,26 @@ POST /subscriptions/{subId}/periods/{periodId}/reports        (reçu PDF)
 GET /stats?period=WEEK... -> MONTH -> YEAR
 ```
 
+App 3.6.1 (session 13, compte sans abonnement en cours) :
+
+```text
+GET /offerGroups?platform=MOBILE                                                        (« s'abonner »)
+GET /subscriptions?periods=FUTURE + ?periods=CURRENT + ?periods=PAST + /offers          (parallèle, « mes abonnements »)
+GET /transactions?showRegulationId=true                                                 (« mes paiements »)
+GET /sales?direction=DEBIT&infoType=TRIP&natures=CONSUMPTION&status=PAID                (« mes trajets » facturés)
+GET /sales?infoType=TRIP&natures=CONSUMPTION&saleDateAfter={now - 6 mois}&status=PAID&status=TO_INVOICE&status=TO_CONTROL
+GET /subscriptions?noStatus=CLOSED&periods=CURRENT&type=LT  +  ...&periods=FUTURE&type=LT
+GET /subscriptions?noStatus=CLOSED&noStatus=INCOMPLETE_FILE&noStatus=NOT_VALID_YET&periods=CURRENT|PAST&type=LT|PARKING   (x4)
+GET /subscriptions?noStatus=CLOSED&periods=CURRENT|FUTURE&type=LT|BATTERY|PARKING|UB                                     (x8)
+GET /sales?infoType=PERIOD&natures=SUBSCRIPTION&status=PAID -> GET /periods?periodIds={ids}      (404, § 5.5)
+GET /balance -> GET /transactions/{txId} + /offers/{offerId}/ + /subscriptions/{subId}          (détail d'un paiement)
+GET /rewards/history?page=0 -> GET /rewards/configurations                                      (« mes points »)
+GET /accounts/{id}/cgau + /cgau/VLS/valid + /accounts/{id}/offers + /subscriptions?periods=PAST,CURRENT,FUTURE
+    + /offers/{offerId}/supplements?isValid=true -> POST /offers/{offerId}/supplements/badges/{badgeId}/packages x2   (devis avant achat)
+```
+
+Entre deux écrans, le « polling home » (§ 7.2) continue, `trips` compris.
+
 ### 7.5 Déconnexion (session 3/12)
 
 ```text
@@ -1622,9 +1811,28 @@ GET /stats?period=WEEK... -> MONTH -> YEAR
 3. purge locale ; l'app repasse en mode anonyme (GET /shops, /events, /news continuent avec le seul Taknv1)
 ```
 
+L'app 3.6.1 (session 13) inverse les deux premières étapes : `GET iam .../logout` d'abord, `DELETE /devices` une seconde après avec le même access token, et l'API répond encore `200`. Elle accepte donc un access token dont la session Keycloak vient d'être fermée, vraisemblablement jusqu'à son expiration (15 min).
+
 ### 7.6 Site web `velov.grandlyon.com` (Angular)
 
 Au chargement : `GET /contracts/lyon`, `/features`, `/offerGroups`, `/sponsoring?platform=WEB&type=BANNER|WELCOME_IMAGE`, `/shops`, `/assets/{id}`, `/offerGroups/{g}/picture` (404), et **`GET /accounts/null/alerts` -> 403** (bug du front quand l'utilisateur n'est pas connecté). Puis `silent-check-sso.html` (iframe `prompt=none`) ; si connecté, `openid_connect_login#code=...` -> token exchange `vls-web-lyon` -> `GET /accounts/{email}/id` -> `GET /accounts/{id}/` etc. Le web utilise `POST /auth/environments/PRD/client_tokens` avec `vls.web.lyon:PRD` **depuis le navigateur** (la clé est donc publique).
+
+### 7.7 Connexion par Google (session 13, app 3.6.1)
+
+Détail du flow au § 3.2 ; heure locale de la capture :
+
+```text
+16:20:13  GET  iam /auth?client_id=vls-ios-lyon&...                       -> page de login (liens broker/lyon-google, broker/lyon-apple)
+16:20:15  GET  iam /broker/lyon-google/login?...                          -> 303 accounts.google.com
+16:20:26  GET  iam /broker/lyon-google/endpoint?state=...&code=...        -> 302 first-broker-login -> 302 after-first-broker-login -> 302 post-broker-login
+16:20:27  GET  iam /login-actions/post-broker-login                       -> 200 formulaire vls-form-device-id
+16:20:27  POST iam /login-actions/post-broker-login  device_id=...        -> 302 after-post-broker-login -> 302 .../openid_connect_login?code=...
+16:20:29  POST iam /token                                                 -> access/refresh/id tokens
+16:20:29  GET  /accounts/{email}/id x4, POST /devices, GET /accounts/{id}  -> compte créé à l'instant (createdAt 16:20:27, completion 0.4)
+16:20:37  GET  iam /logout?id_token_hint=... -> DELETE /devices            (déconnexion, § 7.5)
+```
+
+Apple (16:20:41 -> 16:20:55) suit le même chemin, avec `POST .../broker/lyon-apple/endpoint` (`response_mode=form_post`) et sans étape `first-broker-login` : ce compte avait déjà été créé lors d'une connexion précédente.
 
 ---
 
@@ -1645,7 +1853,8 @@ Au chargement : `GET /contracts/lyon`, `/features`, `/offerGroups`, `/sponsoring
 | Statut trajet                            | `STARTED`, `FINISHED` (observés) ; `REQUESTED`, `REJECTED`, `TIMEOUT`, `PAUSED`, `AUTO_FINISHED`, `ERROR`, `WARNING`, `REVERSED` (VLSKit)                                                                                                                                                                                                                                                                                                                                                   |
 | Statut vélo (`GET /bikes`, tout le parc) | `AVAILABLE`, `RENTED`, `RESERVED`, `REGULATION`, `OUTSIDE_STATION`, `NOT_RECOGNIZED`, `MAINTENANCE`, `MAINTENANCE_HEAVY`, `TO_BE_REPARED`, `NEW_BIKE_IN_STOCK`, `AVAILABLE_IN_STOCK`, `TRANSFERRED`, `DISMANTLED`, `DESTROYED`, `STOLEN`, `SCRAPPED`, `DELETED` ; type `MECHANICAL` / `ELECTRICAL`, détail et effectifs ci-dessous                                                                                                                                                          |
 | Statut station                           | `OPEN`, `CLOSED` (JCDecaux v3) ; `connectionState: CONNECTED`                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| Nature transaction / vente               | `SUBSCRIPTION`, `RENEWAL`, `CONSUMPTION`, `CONSUMPTION_REDUCTION` ; `direction: DEBIT                                                                                                                                                                                                                                                                                                                                        \|CREDIT`;`status: PAID`                                       |
+| Nature transaction / vente               | `SUBSCRIPTION`, `RENEWAL`, `CONSUMPTION`, `CONSUMPTION_REDUCTION` ; `direction: DEBIT\|CREDIT` ; `status: PAID` (transactions), filtre `PAID\|TO_INVOICE\|TO_CONTROL` (ventes) ; `saleAdditionnalInfo.type: TRIP\|PERIOD`                                                                                                                                                                                                                                                                   |
+| Mouvements de points                     | `nature: RULE_ACHIEVED\|CONSUMPTION`, `direction: CREDIT\|DEBIT`, `reason: RATE_BIKE\|REDUCTION\|...`, `referenceType: TRIP`, `readStatus: NOT_APPLICABLE`                                                                                                                                                                                                                                                                                                                                  |
 | Statistiques                             | `TRIPS_COUNTS`, `TRIPS_COUNTS_MECA`, `TRIPS_COUNTS_ELEC`, `TRIPS_DURATIONS`, `TRIPS_REWARDS` ; `period: WEEK                                                                                                                                                                                                                                                                                                                 \|MONTH                 \|YEAR`                                |
 | Événements stations                      | `type: CLOSING`, `nature: WORKS`, `DETERIORATION`, `highPriority`                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | Type de badge                            | `OWNER`, `EXTERNAL`, `TICKET`, `NO_BADGE`                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -1838,7 +2047,7 @@ Techniquement, `POST /accounts/{id}/subscriptions/{subId}/trips` (§ 5.6) est ce
 
 **Comment savoir si une information de ce document est encore vraie ?**
 
-Chaque endpoint porte un statut (légende § 5) ; les lignes ✅ live ont été rejouées le 18/08/2026. Les captures datent de février-mars 2026 (app 3.3.1). En cas de doute, rejouez la commande `curl` correspondante : c'est le meilleur test.
+Chaque endpoint porte un statut (légende § 5) ; les lignes ✅ live ont été rejouées le 18/08/2026, puis le 15/09/2026 pour `sales`, `rewards/history` et les trajets en `v5`/`v6`. Les captures datent de février-mars 2026 (app 3.3.1) et du 15 septembre 2026 (app 3.6.1). En cas de doute, rejouez la commande `curl` correspondante : c'est le meilleur test.
 
 **Y a-t-il une spec OpenAPI ou une collection Postman ?**
 
@@ -1850,7 +2059,7 @@ Oui, les deux, dans ce dossier : [`cyclocity.openapi.yaml`](cyclocity.openapi.ya
 
 ### Sources primaires (ce document)
 
-- Captures Charles Proxy (12 sessions, du 24 fév. au 26 mars 2026) de l'app _Vélo'v officiel_ iOS 3.3.1 et du site velov.grandlyon.com.
+- Captures Charles Proxy : 12 sessions du 24 fév. au 26 mars 2026 (app _Vélo'v officiel_ iOS 3.3.1 et site velov.grandlyon.com), puis une 13e le 15 sept. 2026 (app 3.6.1 sur iOS 27 : connexions par mot de passe, Google et Apple, parcours profil).
 - Bundle Angular de `velov.grandlyon.com` (fichiers `main-*.js`, `chunk-*.js`, thème Keycloak `vls-lyon`) : table des endpoints, énumérations, process. Le même bundle est servi par dublinbikes.ie, villo.be, valenbisi.es, bicikelj.si, myveloh.lu, velo.naolib.fr, velostanlib.fr, sevici.es.
 - APK Android officiel `com.jcdecaux.vls.lyon` 3.3.10 (`versionCode` 3031099, mars 2026), décompilé avec `apktool` : interfaces Retrofit, modèles, énumérations de notifications push, `strings.xml`. Source des endpoints marqués 📱.
 - Keycloak `vls-default` : `.well-known/openid-configuration`.
@@ -1905,4 +2114,4 @@ Le texte, les tableaux et les diagrammes de cette documentation sont publiés so
 
 Si vous modifiez le contenu, indiquez-le ; l'attribution ne doit pas suggérer que je soutiens votre usage. Aucune attribution n'est requise pour les faits techniques eux-mêmes (URL d'endpoints, noms de champs) : ils ne sont pas couverts par le droit d'auteur.
 
-_Dernière mise à jour : août 2026 (captures fév.-mars 2026, app iOS 3.3.1 ; vérifications live du 18/08/2026)._
+_Dernière mise à jour : septembre 2026 (captures fév.-mars 2026 avec l'app iOS 3.3.1 et 15 sept. 2026 avec la 3.6.1 ; vérifications live du 18/08/2026)._

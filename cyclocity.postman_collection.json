@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "b1f4c0e2-7c3a-4d0e-9f11-cyclocity2026",
     "name": "API Cyclocity (Vélo'v Lyon), non officielle",
-    "description": "Collection dérivée de README.md (captures fév.-mars 2026, vérifications live 18/08/2026). Non officielle, sans garantie ; utilisez uniquement votre propre compte. Préfixe des noms : ✅ observé, ✅ live vérifié par requête directe, 🌐 déclaré dans le front web, 📱 lu dans le binaire de l'app Android officielle 3.3.10 (non exercé en capture). Les requêtes marquées ⚠️ sont des actions réelles et payantes.\n\nMise en route : 1) exécuter « 0. Auth / Client token » (remplit {{takn}}) ; 2) pour la partie compte, coller un access token Keycloak dans {{identity}} (flow OIDC/PKCE headless, § 3.2 de la doc) et votre email dans {{email}}, puis exécuter « Résoudre mon accountId ». Voir aussi cyclocity.openapi.yaml.\n\nSource et mises à jour : https://github.com/yannlombard/cyclocity-api-doc, © 2026 Yann Lombard, sous licence CC BY 4.0.",
+    "description": "Collection dérivée de README.md (captures fév.-mars 2026 avec l'app iOS 3.3.1, sept. 2026 avec la 3.6.1 ; vérifications live 18/08/2026). Non officielle, sans garantie ; utilisez uniquement votre propre compte. Préfixe des noms : ✅ observé, ✅ live vérifié par requête directe, 🌐 déclaré dans le front web, 📱 lu dans le binaire de l'app Android officielle 3.3.10 (non exercé en capture). Les requêtes marquées ⚠️ sont des actions réelles et payantes.\n\nMise en route : 1) exécuter « 0. Auth / Client token » (remplit {{takn}}) ; 2) pour la partie compte, coller un access token Keycloak dans {{identity}} (flow OIDC/PKCE headless, § 3.2 de la doc) et votre email dans {{email}}, puis exécuter « Résoudre mon accountId ». Voir aussi cyclocity.openapi.yaml.\n\nSource et mises à jour : https://github.com/yannlombard/cyclocity-api-doc, © 2026 Yann Lombard, sous licence CC BY 4.0.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -1402,6 +1402,80 @@
             "description": ""
           },
           "id": "cyclocity-05-04"
+        },
+        {
+          "name": "✅ Abonnements hors clos (app 3.6.1)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Taknv1 {{takn}}"
+              },
+              {
+                "key": "Identity",
+                "value": "{{identity}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/vnd.subscription.v6+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contracts/{{contract}}/accounts/{{accountId}}/subscriptions?noStatus=CLOSED&periods=CURRENT&type=LT",
+              "host": ["{{baseUrl}}"],
+              "path": ["contracts", "{{contract}}", "accounts", "{{accountId}}", "subscriptions"],
+              "query": [
+                {
+                  "key": "noStatus",
+                  "value": "CLOSED"
+                },
+                {
+                  "key": "periods",
+                  "value": "CURRENT"
+                },
+                {
+                  "key": "type",
+                  "value": "LT"
+                }
+              ]
+            },
+            "description": "`noStatus` est répétable (`&noStatus=INCOMPLETE_FILE&noStatus=NOT_VALID_YET`) ; `type` = LT, BATTERY, PARKING ou UB ; `periods` = CURRENT, FUTURE ou PAST. L'app 3.6.1 lance ces combinaisons en parallèle à l'ouverture du profil (§ 5.5 / § 7.4)."
+          },
+          "id": "cyclocity-05-05"
+        },
+        {
+          "name": "✅ Périodes par identifiants (404 observé)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Taknv1 {{takn}}"
+              },
+              {
+                "key": "Identity",
+                "value": "{{identity}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.subscription.v6+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contracts/{{contract}}/accounts/{{accountId}}/periods?periodIds={{periodId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["contracts", "{{contract}}", "accounts", "{{accountId}}", "periods"],
+              "query": [
+                {
+                  "key": "periodIds",
+                  "value": "{{periodId}}"
+                }
+              ]
+            },
+            "description": "Plusieurs ids séparés par des virgules. L'app 3.6.1 y passe les periodId tirés de « Ventes : périodes d'abonnement payées » (dossier 7). Seule réponse observée : 404 accounts.exception.notfound.searched.periods sur des périodes de tickets clos ; la forme du 200 n'est pas connue (§ 5.5)."
+          },
+          "id": "cyclocity-05-06"
         }
       ],
       "id": "cyclocity-05"
@@ -1612,6 +1686,47 @@
             }
           },
           "id": "cyclocity-06-04"
+        },
+        {
+          "name": "✅ live Historique filtré, trip v6 (app 3.6.1)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Taknv1 {{takn}}"
+              },
+              {
+                "key": "Identity",
+                "value": "{{identity}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/vnd.trip.v6+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contracts/{{contract}}/accounts/{{accountId}}/trips?status=FINISHED&status=ERROR&status=REVERSED",
+              "host": ["{{baseUrl}}"],
+              "path": ["contracts", "{{contract}}", "accounts", "{{accountId}}", "trips"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "FINISHED"
+                },
+                {
+                  "key": "status",
+                  "value": "ERROR"
+                },
+                {
+                  "key": "status",
+                  "value": "REVERSED"
+                }
+              ]
+            },
+            "description": "Ce que fait l'app 3.6.1 (sept. 2026). Seules des listes vides ont été observées en v6 : la shape est supposée identique au v5 de « Historique des trajets » (§ 5.6)."
+          },
+          "id": "cyclocity-06-05"
         }
       ],
       "id": "cyclocity-06"
@@ -1693,11 +1808,17 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/contracts/{{contract}}/accounts/{{accountId}}/transactions",
+              "raw": "{{baseUrl}}/contracts/{{contract}}/accounts/{{accountId}}/transactions?showRegulationId=true",
               "host": ["{{baseUrl}}"],
-              "path": ["contracts", "{{contract}}", "accounts", "{{accountId}}", "transactions"]
+              "path": ["contracts", "{{contract}}", "accounts", "{{accountId}}", "transactions"],
+              "query": [
+                {
+                  "key": "showRegulationId",
+                  "value": "true"
+                }
+              ]
             },
-            "description": ""
+            "description": "`showRegulationId=true` : ce que l'app 3.6.1 envoie systématiquement (effet non observé sur un compte sans régularisation)."
           },
           "event": [
             {
@@ -1871,6 +1992,143 @@
             "description": ""
           },
           "id": "cyclocity-07-07"
+        },
+        {
+          "name": "✅ live Ventes : trajets facturés",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Taknv1 {{takn}}"
+              },
+              {
+                "key": "Identity",
+                "value": "{{identity}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.sale.v1+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contracts/{{contract}}/accounts/{{accountId}}/sales?direction=DEBIT&infoType=TRIP&natures=CONSUMPTION&status=PAID",
+              "host": ["{{baseUrl}}"],
+              "path": ["contracts", "{{contract}}", "accounts", "{{accountId}}", "sales"],
+              "query": [
+                {
+                  "key": "direction",
+                  "value": "DEBIT"
+                },
+                {
+                  "key": "infoType",
+                  "value": "TRIP"
+                },
+                {
+                  "key": "natures",
+                  "value": "CONSUMPTION"
+                },
+                {
+                  "key": "status",
+                  "value": "PAID"
+                }
+              ]
+            },
+            "description": "Chaque ligne embarque le trajet facturé dans saleAdditionnalInfo.additionalInfos (noms de stations, elecTripsNb, overchargeAmount), que GET /trips ne renvoie pas. L'app envoie le media-type en Content-Type avec Accept: */* ; la réponse est en application/vnd.sale.v1+json. Variante de l'app pour les dépassements récents : ?infoType=TRIP&natures=CONSUMPTION&saleDateAfter=2026-03-15T16:21:45&status=PAID&status=TO_INVOICE&status=TO_CONTROL (§ 5.7)."
+          },
+          "id": "cyclocity-07-08"
+        },
+        {
+          "name": "✅ live Ventes : périodes d'abonnement payées",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Taknv1 {{takn}}"
+              },
+              {
+                "key": "Identity",
+                "value": "{{identity}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.sale.v1+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contracts/{{contract}}/accounts/{{accountId}}/sales?infoType=PERIOD&natures=SUBSCRIPTION&status=PAID",
+              "host": ["{{baseUrl}}"],
+              "path": ["contracts", "{{contract}}", "accounts", "{{accountId}}", "sales"],
+              "query": [
+                {
+                  "key": "infoType",
+                  "value": "PERIOD"
+                },
+                {
+                  "key": "natures",
+                  "value": "SUBSCRIPTION"
+                },
+                {
+                  "key": "status",
+                  "value": "PAID"
+                }
+              ]
+            },
+            "description": "Le test enregistre le premier periodId -> {{periodId}} (pour « Périodes par identifiants » et le reçu PDF)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json(); const s = Array.isArray(j) && j[0]; if (s && s.saleAdditionnalInfo && s.saleAdditionnalInfo.additionalInfos) { pm.collectionVariables.set('periodId', s.saleAdditionnalInfo.additionalInfos.periodId); if (s.subscriptionId) pm.collectionVariables.set('subscriptionId', s.subscriptionId); }"
+                ]
+              }
+            }
+          ],
+          "id": "cyclocity-07-09"
+        },
+        {
+          "name": "✅ Historique des points",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Taknv1 {{takn}}"
+              },
+              {
+                "key": "Identity",
+                "value": "{{identity}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/vnd.rewards.v5+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contracts/{{contract}}/accounts/{{accountId}}/rewards/history?page=0",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "contracts",
+                "{{contract}}",
+                "accounts",
+                "{{accountId}}",
+                "rewards",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Page Spring (200 par page) : content[] avec nature RULE_ACHIEVED|CONSUMPTION, direction CREDIT|DEBIT, amount, reason (RATE_BIKE, REDUCTION...), reference/referenceType TRIP, readStatus (§ 5.8)."
+          },
+          "id": "cyclocity-07-10"
         }
       ],
       "id": "cyclocity-07"

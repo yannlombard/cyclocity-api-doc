@@ -1,11 +1,11 @@
 openapi: 3.1.0
 info:
   title: API Cyclocity (Vélo'v Lyon), spécification communautaire non officielle
-  version: 2026.08.1
-  summary: Reverse-engineering de api.cyclocity.fr tel qu'utilisé par l'app Vélo'v officiel (iOS 3.3.1) et velov.grandlyon.com.
+  version: 2026.09.1
+  summary: Reverse-engineering de api.cyclocity.fr tel qu'utilisé par l'app Vélo'v officiel (iOS 3.3.1, puis 3.6.1) et velov.grandlyon.com.
   description: |
     Spécification **partielle et non officielle** dérivée de `README.md` (captures réseau
-    fév.-mars 2026, vérifications live du 18/08/2026). Elle couvre les endpoints observés (✅) et les
+    fév.-mars et sept. 2026, vérifications live du 18/08/2026). Elle couvre les endpoints observés (✅) et les
     principaux endpoints déclarés dans le front web (🌐). Rien n'est supporté par JCDecaux ni par la
     Métropole de Lyon ; les endpoints, clés et formats peuvent changer sans préavis.
 
@@ -1143,6 +1143,14 @@ paths:
             example: 'PAST,CURRENT,FUTURE',
           }
         - { name: type, in: query, schema: { type: string, enum: [ST, LT, UB, BATTERY, PARKING] } }
+        - {
+            name: noStatus,
+            in: query,
+            style: form,
+            explode: true,
+            schema: { type: array, items: { type: string, enum: [CLOSED, INCOMPLETE_FILE, NOT_VALID_YET] } },
+            description: 'Exclut les abonnements portant ce statut (répétable, app 3.6.1)',
+          }
         - { name: isLocked, in: query, schema: { type: integer, enum: [0, 1] } }
         - { name: sort, in: query, schema: { type: string, enum: [ASC, DESC] } }
       responses:
@@ -1214,6 +1222,38 @@ paths:
               schema: { $ref: '#/components/schemas/TranslatedDocument' }
             application/pdf:
               schema: { type: string, contentEncoding: binary }
+  /contracts/{contract}/accounts/{accountId}/periods:
+    parameters:
+      - $ref: '#/components/parameters/contract'
+      - $ref: '#/components/parameters/accountId'
+    get:
+      tags: [Abonnements]
+      operationId: getPeriodsByIds
+      summary: Périodes d'abonnement par identifiants
+      description: "Appelé par l'app 3.6.1 avec les `periodId` de `GET .../sales?infoType=PERIOD` et un `Content-Type: application/vnd.subscription.v6+json` sans `Accept`. Seule réponse observée : `404 accounts.exception.notfound.searched.periods` (périodes de tickets clos) ; la forme du `200` n'est pas connue."
+      security: [{ Taknv1: [], Identity: [] }]
+      x-status: observed
+      parameters:
+        - {
+            name: periodIds,
+            in: query,
+            required: true,
+            style: form,
+            explode: false,
+            schema: { type: array, items: { type: string, format: uuid } },
+            description: 'Identifiants séparés par des virgules',
+          }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/ForbiddenIdentity' }
+        '404':
+          description: '`accounts.exception.notfound.searched.periods`, « Listed periods for account could not be found »'
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '200':
+          description: OK (non observé)
+          content:
+            application/json:
+              schema: { type: array, items: { type: object } }
   /contracts/{contract}/accounts/{accountId}/subscriptions/{subscriptionId}/renewaloffers:
     parameters:
       - $ref: '#/components/parameters/contract'
@@ -1286,8 +1326,9 @@ paths:
       tags: [Trajets et statistiques]
       operationId: getOngoingTrips
       summary: Trajet en cours (`[]` sinon)
+      description: "L'app 3.6.1 (sept. 2026) demande `application/vnd.trip.v6+json` ; seules des listes vides ont été observées dans ce type, la shape est supposée identique au v5. Les deux `Accept` répondent `200` (vérifié live le 15/09/2026)."
       security: [{ Taknv1: [], Identity: [] }]
-      x-status: observed
+      x-status: live
       responses:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/ForbiddenIdentity' }
@@ -1295,6 +1336,8 @@ paths:
           description: OK
           content:
             application/vnd.trip.v5+json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Trip' } }
+            application/vnd.trip.v6+json:
               schema: { type: array, items: { $ref: '#/components/schemas/Trip' } }
   /contracts/{contract}/accounts/{accountId}/trips:
     parameters:
@@ -1304,8 +1347,27 @@ paths:
       tags: [Trajets et statistiques]
       operationId: listTrips
       summary: Historique des trajets (les plus récents en premier)
+      description: "L'app 3.6.1 (sept. 2026) filtre `?status=FINISHED&status=ERROR&status=REVERSED` et demande `application/vnd.trip.v6+json` ; seules des listes vides ont été observées dans ce type, la shape est supposée identique au v5. Les deux `Accept` et le filtre répondent `200` (vérifié live le 15/09/2026). Les trajets facturés se relisent aussi dans `GET .../sales?infoType=TRIP`."
       security: [{ Taknv1: [], Identity: [] }]
-      x-status: observed
+      x-status: live
+      parameters:
+        - {
+            name: status,
+            in: query,
+            style: form,
+            explode: true,
+            schema:
+              {
+                type: array,
+                items:
+                  {
+                    type: string,
+                    enum:
+                      [REQUESTED, STARTED, FINISHED, REJECTED, TIMEOUT, PAUSED, AUTO_FINISHED, ERROR, WARNING, REVERSED],
+                  },
+              },
+            description: 'Répétable',
+          }
       responses:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/ForbiddenIdentity' }
@@ -1313,6 +1375,8 @@ paths:
           description: OK
           content:
             application/vnd.trip.v5+json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Trip' } }
+            application/vnd.trip.v6+json:
               schema: { type: array, items: { $ref: '#/components/schemas/Trip' } }
   /contracts/{contract}/accounts/{accountId}/trips/{tripId}/rate:
     parameters:
@@ -1510,6 +1574,48 @@ paths:
                   - type: object
                     properties:
                       sales: { type: array, items: { $ref: '#/components/schemas/Sale' } }
+  /contracts/{contract}/accounts/{accountId}/sales:
+    parameters:
+      - $ref: '#/components/parameters/contract'
+      - $ref: '#/components/parameters/accountId'
+    get:
+      tags: [Paiement]
+      operationId: listSales
+      summary: Lignes de vente, avec le trajet facturé si `infoType=TRIP`
+      description: "L'app 3.6.1 envoie `Content-Type: application/vnd.sale.v1+json` avec `Accept: */*` ; la réponse est en `application/vnd.sale.v1+json` (le même type en `Accept` fonctionne aussi, vérifié live le 15/09/2026). Trois requêtes observées : `?direction=DEBIT&infoType=TRIP&natures=CONSUMPTION&status=PAID`, `?infoType=TRIP&natures=CONSUMPTION&saleDateAfter={now - 6 mois}&status=PAID&status=TO_INVOICE&status=TO_CONTROL`, `?infoType=PERIOD&natures=SUBSCRIPTION&status=PAID`."
+      security: [{ Taknv1: [], Identity: [] }]
+      x-status: live
+      parameters:
+        - { name: infoType, in: query, schema: { type: string, enum: [TRIP, PERIOD] } }
+        - {
+            name: natures,
+            in: query,
+            schema: { type: string, enum: [SUBSCRIPTION, RENEWAL, CONSUMPTION, CONSUMPTION_REDUCTION] },
+          }
+        - {
+            name: status,
+            in: query,
+            style: form,
+            explode: true,
+            schema: { type: array, items: { type: string, enum: [PAID, TO_INVOICE, TO_CONTROL] } },
+            description: 'Répétable',
+          }
+        - { name: direction, in: query, schema: { type: string, enum: [DEBIT, CREDIT] } }
+        - {
+            name: saleDateAfter,
+            in: query,
+            schema: { type: string },
+            description: 'ISO 8601 local sans zone',
+            example: '2026-03-15T16:21:45',
+          }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/ForbiddenIdentity' }
+        '200':
+          description: OK
+          content:
+            application/vnd.sale.v1+json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Sale' } }
   /contracts/{contract}/accounts/{accountId}/pay/checkout:
     parameters:
       - $ref: '#/components/parameters/contract'
@@ -1590,6 +1696,26 @@ paths:
           content:
             application/vnd.rewards.v5+json:
               schema: { $ref: '#/components/schemas/Rewards' }
+  /contracts/{contract}/accounts/{accountId}/rewards/history:
+    parameters:
+      - $ref: '#/components/parameters/contract'
+      - $ref: '#/components/parameters/accountId'
+    get:
+      tags: [Récompenses]
+      operationId: getRewardsHistory
+      summary: Historique des mouvements de points (page Spring, 200 par page)
+      security: [{ Taknv1: [], Identity: [] }]
+      x-status: observed
+      parameters:
+        - { name: page, in: query, schema: { type: integer, default: 0 } }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/ForbiddenIdentity' }
+        '200':
+          description: OK
+          content:
+            application/vnd.rewards.v5+json:
+              schema: { $ref: '#/components/schemas/RewardHistoryPage' }
   /contracts/{contract}/rewards/configurations:
     parameters: [{ $ref: '#/components/parameters/contract' }]
     get:
@@ -2186,7 +2312,7 @@ components:
 
     Trip:
       type: object
-      description: '`Accept: application/vnd.trip.v5+json` : `duration` en minutes arrondies au supérieur ; `bikeType` 0 = mécanique, 1 = électrique ; `origin` 4 = smartphone'
+      description: '`Accept: application/vnd.trip.v5+json` (l''app 3.6.1 demande `v6`, shape non observée) : `duration` en minutes arrondies au supérieur ; `bikeType` 0 = mécanique, 1 = électrique ; `origin` 4 = smartphone'
       properties:
         id: { type: string, format: uuid }
         movementRef: { type: string }
@@ -2304,12 +2430,33 @@ components:
         updatedAt: { type: string }
         amount: { type: integer }
         direction: { type: string, enum: [DEBIT, CREDIT] }
-        status: { type: string }
+        status: { type: string, examples: [PAID], description: 'Filtre `GET /sales` : PAID, TO_INVOICE, TO_CONTROL' }
         transactionId: { type: string, format: uuid }
         subscriptionType: { type: string }
         pankey: { type: string }
         accountType: { type: string }
+        platform: { type: string, description: 'Présent sur les ventes de période (`MOBILE`, `WEB`...)' }
         paybackAmount: { type: integer }
+        saleAdditionnalInfo:
+          type: object
+          description: 'Présent sur `GET /sales` (pas dans `sales[]` du détail de transaction). `type: TRIP` -> `additionalInfos` est le trajet facturé ; `type: PERIOD` -> `additionalInfos: { periodId }`'
+          properties:
+            id: { type: string, description: '`movementRef` du trajet ou `periodId`' }
+            type: { type: string, enum: [TRIP, PERIOD] }
+            additionalInfos:
+              oneOf:
+                - allOf:
+                    - $ref: '#/components/schemas/Trip'
+                    - type: object
+                      description: 'Champs absents de `GET /trips`'
+                      properties:
+                        startStationName: { type: string }
+                        endStationName: { type: string }
+                        elecTripsNb: { type: integer }
+                        overchargeAmount: { type: integer, description: Centimes }
+                        overchargeMaxTrips: { type: integer }
+                - type: object
+                  properties: { periodId: { type: string, format: uuid } }
 
     Rewards:
       type: object
@@ -2320,6 +2467,38 @@ components:
         autoSpend: { type: boolean }
         total: { type: integer }
         friendsInvitedCount: { type: integer }
+
+    RewardHistoryEntry:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        accountRewardId: { type: string, format: uuid }
+        nature: { type: string, enum: [RULE_ACHIEVED, CONSUMPTION] }
+        direction: { type: string, enum: [CREDIT, DEBIT] }
+        amount: { type: integer, description: Points }
+        reason:
+          {
+            type: string,
+            description: '`name` de la règle (`RATE_BIKE`...) pour un crédit, `REDUCTION` pour un débit',
+            examples: [RATE_BIKE, REDUCTION],
+          }
+        reference: { type: string, description: 'Id du trajet pour un débit ; la chaîne `"null"` pour un crédit de règle' }
+        referenceType: { type: string, enum: [TRIP] }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+        readStatus: { type: string, examples: [NOT_APPLICABLE] }
+
+    RewardHistoryPage:
+      type: object
+      properties:
+        content: { type: array, items: { $ref: '#/components/schemas/RewardHistoryEntry' } }
+        totalElements: { type: integer }
+        totalPages: { type: integer }
+        size: { type: integer, examples: [200] }
+        number: { type: integer }
+        numberOfElements: { type: integer }
+        first: { type: boolean }
+        last: { type: boolean }
 
     ProcessRequest:
       type: object
