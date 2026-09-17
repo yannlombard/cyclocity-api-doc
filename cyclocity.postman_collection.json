@@ -1626,10 +1626,10 @@
                 "trips"
               ]
             },
-            "description": "ACTION RÉELLE ET POTENTIELLEMENT PAYANTE : libère physiquement un vélo sur votre abonnement. Valeurs à prendre dans « Vélos d'une station ». Remplacez les variables par des entiers.",
+            "description": "ACTION RÉELLE ET POTENTIELLEMENT PAYANTE : libère physiquement un vélo sur votre abonnement. Valeurs à prendre dans « Vélos d'une station » : les variables sont insérées sans guillemets, elles doivent contenir des entiers.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"stationNumber\": \"{{stationNumber}}\",\n  \"bikeNumber\": \"{{bikeNumber}}\",\n  \"standNumber\": \"{{standNumber}}\",\n  \"typeFrom\": \"SMARTPHONE\"\n}",
+              "raw": "{\n  \"stationNumber\": {{stationNumber}},\n  \"bikeNumber\": {{bikeNumber}},\n  \"standNumber\": {{standNumber}},\n  \"typeFrom\": \"SMARTPHONE\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
