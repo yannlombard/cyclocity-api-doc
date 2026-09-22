@@ -423,6 +423,56 @@ paths:
                   validityStart: { type: string, format: date }
                   isValid: { type: boolean }
                   documentId: { type: string, format: uuid }
+  /contracts/{contract}/cgau/{type}/valid/file:
+    parameters:
+      - $ref: '#/components/parameters/contract'
+      - {
+          name: type,
+          in: path,
+          required: true,
+          schema: { type: string, enum: [VLS, VLD, PARKING] },
+        }
+    get:
+      tags: [Contrat]
+      operationId: getValidCgauFile
+      summary: PDF des CGU valides d'un type, en base64 dans une enveloppe JSON
+      description: >-
+        Pas de PDF brut : le document est dans `translations.content` (base64). `Accept:
+        application/vnd.cgau.v2+json` est exigé ; sans `Accept` ou avec `*/*` -> `415`, avec
+        `application/json` ou `application/pdf` -> `406`. Sans client token -> `403 role.not.allowed`.
+        Même réponse sur `/cgau/{type}/versions/{version}/file`.
+      x-status: live
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: OK
+          content:
+            application/vnd.cgau.v2+json:
+              schema: { $ref: '#/components/schemas/CgauFile' }
+        '406': { description: '`Accept` autre que `application/vnd.cgau.v2+json` (page HTML Tomcat)' }
+        '415': { description: '`Accept` absent ou `*/*` (page HTML Tomcat)' }
+  /contracts/{contract}/cgau/{type}/versions/{version}/file:
+    parameters:
+      - $ref: '#/components/parameters/contract'
+      - {
+          name: type,
+          in: path,
+          required: true,
+          schema: { type: string, enum: [VLS, VLD, PARKING] },
+        }
+      - { name: version, in: path, required: true, schema: { type: string, examples: ['003.002'] } }
+    get:
+      tags: [Contrat]
+      operationId: getCgauVersionFile
+      summary: PDF d'une version donnée des CGU (même enveloppe que `.../valid/file`)
+      x-status: live
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: OK
+          content:
+            application/vnd.cgau.v2+json:
+              schema: { $ref: '#/components/schemas/CgauFile' }
   /contracts/{contract}/cgau:
     parameters: [{ $ref: '#/components/parameters/contract' }]
     get:
@@ -1958,6 +2008,20 @@ components:
       properties:
         code: { type: string, examples: [stats.exception.stats.not.found] }
         message: { type: string }
+
+    CgauFile:
+      type: object
+      description: Enveloppe d'un PDF de CGU, même forme que le logo d'un badge ou un reçu de période.
+      properties:
+        id: { type: string, format: uuid, description: '`documentId` de la version' }
+        filename: { type: string, examples: ["20250101_CGAU Vélo'v 2.pdf"] }
+        mimeType: { type: string, examples: [application/pdf] }
+        translations:
+          type: object
+          properties:
+            id: { type: integer }
+            locale: { type: string, examples: [fr] }
+            content: { type: string, contentEncoding: base64, description: PDF encodé en base64 }
 
     Feature:
       type: object
