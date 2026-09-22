@@ -2206,9 +2206,15 @@ components:
             level: { type: string }
         rating:
           type: object
+          description: |
+            Note des usagers. `count: 0` sans les autres champs pour un vélo jamais noté.
           properties:
             {
-              value: { type: number },
+              value:
+                {
+                  type: number,
+                  description: 'Moyenne de votes valant chacun 100 (recommandé), 60 ou 30 (déconseillé) ; pas un pourcentage de recommandation',
+                },
               count: { type: integer },
               lastRatingDateTime: { type: string },
             }
