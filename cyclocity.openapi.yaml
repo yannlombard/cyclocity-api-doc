@@ -2196,14 +2196,20 @@ components:
             ]
         statusLabel: { type: string }
         hasBattery: { type: boolean }
-        hasLock: { type: boolean }
+        hasLock:
+          type: boolean
+          description: Toujours `false` sur le parc lyonnais (relevé du 23/09/2026)
         battery:
           type: object
           description: Vélos électriques uniquement
           properties:
-            percentage: { type: number }
-            type: { type: string, examples: [INTERNAL] }
-            level: { type: string }
+            percentage:
+              type: number
+              description: Charge en %, mais des valeurs de 2 059 à 3 691 existent (surtout sur `REMOVABLE`), vraisemblablement une tension en mV ; écarter toute valeur hors de 0-100
+            type: { type: string, enum: [INTERNAL, REMOVABLE] }
+            level:
+              type: integer
+              description: Palier calculé, `ceil(percentage / 25)` ; 0 à 4 pour un pourcentage valide
         rating:
           type: object
           description: |
@@ -2225,6 +2231,9 @@ components:
           description: Vélo contrôlé sans aucun avis depuis ; affiché « Révisé » par les clients officiels, à la place de la note. Tombe au premier avis (déduit, README § 5.6)
         createdAt: { type: string }
         updatedAt: { type: string }
+        isReserved:
+          type: boolean
+          description: Ne recoupe pas le statut `RESERVED` (880 vélos `true` le 23/09/2026, surtout `RENTED` et `AVAILABLE`, pour un seul `RESERVED`) ; sens non établi
         lastTripDateTime:
           type: string
           description: Dernier trajet ; le seul champ qui dise si le vélo roule vraiment (`status` garde des fiches dormantes)
