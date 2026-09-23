@@ -2198,18 +2198,28 @@ components:
         hasBattery: { type: boolean }
         hasLock:
           type: boolean
-          description: Toujours `false` sur le parc lyonnais (relevé du 23/09/2026)
+          description: Toujours `false` sur le parc lyonnais (relevé du 23/09/2026) ; l'app Android le lit avec `lock`, sans l'afficher
+        lock:
+          type: object
+          description: Cadenas connecté, lu par l'app Android mais jamais affiché ; absent à Lyon
+          properties:
+            latitude: { type: number }
+            longitude: { type: number }
+            batteryPercentage: { type: integer }
         battery:
           type: object
           description: Vélos électriques uniquement
           properties:
             percentage:
               type: number
-              description: Charge en %, mais des valeurs de 2 059 à 3 691 existent (surtout sur `REMOVABLE`), vraisemblablement une tension en mV ; écarter toute valeur hors de 0-100
-            type: { type: string, enum: [INTERNAL, REMOVABLE] }
+              description: Charge en %, mais des valeurs de 2 059 à 3 691 existent (surtout sur `REMOVABLE`), vraisemblablement une tension en mV ; écarter toute valeur hors de 0-100. Aucun client officiel ne le lit
+            type:
+              type: string
+              enum: [INTERNAL, REMOVABLE]
+              description: Les clients officiels n'affichent la batterie que d'un vélo `INTERNAL`
             level:
               type: integer
-              description: Palier calculé, `ceil(percentage / 25)` ; 0 à 4 pour un pourcentage valide
+              description: Palier calculé, `ceil(percentage / 25)` ; 0 à 4 pour un pourcentage valide. L'app Android affiche une pile en erreur à partir de 5
         rating:
           type: object
           description: |
@@ -2233,7 +2243,10 @@ components:
         updatedAt: { type: string }
         isReserved:
           type: boolean
-          description: Ne recoupe pas le statut `RESERVED` (880 vélos `true` le 23/09/2026, surtout `RENTED` et `AVAILABLE`, pour un seul `RESERVED`) ; sens non établi
+          description: Ne recoupe pas le statut `RESERVED` (880 vélos `true` le 23/09/2026, surtout `RENTED` et `AVAILABLE`, pour un seul `RESERVED`) ; sens non établi, lu par aucun client. `bikes.v4` seulement
+        energySource:
+          type: integer
+          description: '`0` mécanique, `1` ou `2` électrique ; absent sur les vélos à batterie `REMOVABLE`. `bikes.v4` seulement, lu par aucun client'
         lastTripDateTime:
           type: string
           description: Dernier trajet ; le seul champ qui dise si le vélo roule vraiment (`status` garde des fiches dormantes)
