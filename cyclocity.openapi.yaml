@@ -2207,7 +2207,9 @@ components:
         rating:
           type: object
           description: |
-            Note des usagers. `count: 0` sans les autres champs pour un vélo jamais noté.
+            Note des usagers **depuis le dernier contrôle** (`lastControlDateTime`) : elle
+            repart de zéro à chaque passage en atelier (déduit, README § 5.6). `count: 0` sans
+            les autres champs pour un vélo jamais noté depuis.
           properties:
             {
               value:
@@ -2221,6 +2223,21 @@ components:
         checked: { type: boolean }
         createdAt: { type: string }
         updatedAt: { type: string }
+        lastTripDateTime:
+          type: string
+          description: Dernier trajet ; le seul champ qui dise si le vélo roule vraiment (`status` garde des fiches dormantes)
+        lastControlDateTime:
+          type: string
+          description: Dernier contrôle en atelier ; remet `rating` à zéro
+        nextCheck:
+          type: string
+          description: Contrôle suivant, fixé à `lastControlDateTime` + 5 jours
+        lastRevisionDateTime:
+          type: string
+          description: Dernière révision complète
+        nextReview:
+          type: string
+          description: Révision suivante, fixée à `lastRevisionDateTime` + 730 jours
         lastDataFrameDate: { type: string }
         bikeBatteryMv: { type: integer }
         bikeTopSwVersion: { type: string }

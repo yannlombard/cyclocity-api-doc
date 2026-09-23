@@ -837,7 +837,7 @@ curl -s https://api.cyclocity.fr/contracts/lyon/gbfs/v3/station_status.json | jq
 
 `GET /stations/{n}` **sans** `Accept` versionné renvoie une shape legacy qui contient encore la liste des vélos : `{ label, open, connected, code, country, agency, district, nbBikeBases, nbBikes, bikes: [{ bikeType, bikeBaseNo, bikeNo, bikeAvailable }], bonus }`.
 
-Vélos électriques : `type: "ELECTRICAL"`, `hasBattery: true`, `battery: { percentage, type: "INTERNAL", level }`, plus `motorControllerSwVersion/HwVersion`, `bmsSwVersion`. Seuils d'affichage batterie dans les features (`BATTERY.HIGH/LOW.THRESHOLD.ELECTRICAL` = 60 % / 10 %). `number` (entier) est le numéro à utiliser pour déverrouiller ; `frameId` est le numéro de cadre. `rating` est la note des usagers (moyenne de votes à 100, 60 ou 30, § 5.6). Sur le parc sans filtre, `status: AVAILABLE` ne dit pas qu'un vélo roule : le 22/09/2026, 14 564 fiches étaient `AVAILABLE` ou `RENTED` mais 4 798 seulement avaient un `lastTripDateTime` de moins de 30 jours ; les autres sont des fiches dormantes du référentiel. Le vélo n° 1 (`MECHANICAL`, sans station) cumule plus de 5 600 avis : un numéro de test ou par défaut, à écarter de toute statistique. Un vélo hors station porte `stationNumber = 101010` (feature `bike.station.disabled`).
+Vélos électriques : `type: "ELECTRICAL"`, `hasBattery: true`, `battery: { percentage, type: "INTERNAL", level }`, plus `motorControllerSwVersion/HwVersion`, `bmsSwVersion`. Seuils d'affichage batterie dans les features (`BATTERY.HIGH/LOW.THRESHOLD.ELECTRICAL` = 60 % / 10 %). `number` (entier) est le numéro à utiliser pour déverrouiller ; `frameId` est le numéro de cadre. `rating` est la note des usagers (moyenne de votes à 100, 60 ou 30, § 5.6). Sur le parc sans filtre, `status: AVAILABLE` ne dit pas qu'un vélo roule : le 22/09/2026, 14 564 fiches étaient `AVAILABLE` ou `RENTED` mais 4 798 seulement avaient un `lastTripDateTime` de moins de 30 jours ; les autres sont des fiches dormantes du référentiel. Le vélo n° 1 (`MECHANICAL`, sans station) cumule plus de 5 600 avis : un numéro de test ou par défaut, à écarter de toute statistique. Dates d'entretien, présentes sur une partie du parc seulement : `lastControlDateTime` (dernier contrôle, qui remet `rating` à zéro, § 5.6) et `nextCheck`, fixé à contrôle + 5 jours ; `lastRevisionDateTime` (révision complète) et `nextReview`, fixé à révision + 730 jours ; `lastTripDateTime`, le dernier trajet — le seul champ qui dise si un vélo roule vraiment. Un vélo hors station porte `stationNumber = 101010` (feature `bike.station.disabled`).
 
 **`GET api.jcdecaux.com/vls/v3/stations`** (élément) :
 
@@ -1317,6 +1317,22 @@ Content-Type: application/vnd.trip.v5+json
 | `cdrCode`     | chaîne ou `null` | motif, **uniquement** si `recommended: false` ; pris dans `GET /defect-types?domain=BIKE&category=DECLARED_CUSTOMER&active=true` (§ 5.1) |
 
 Effet visible ensuite : le vélo porte un `rating: { value, count, lastRatingDateTime }` dans `GET /bikes` (§ 5.2). **`value` n'est pas un pourcentage de recommandation** : c'est la moyenne de votes qui valent chacun **100, 60 ou 30**. Relevé sur tout le parc le 22/09/2026 (17 653 fiches) : les vélos à un seul avis ne prennent que ces trois valeurs (100 : 74 %, 60 : 13 %, 30 : 12 %), ceux à deux avis 45, 65 ou 80 — les moyennes deux à deux. 100 correspond à `recommended: true` ; 60 et 30 sont deux degrés de « je déconseille », vraisemblablement le `rating` du `cdrCode` choisi (§ 5.1, non vérifié : `GET /defect-types` répond `403 role.not.allowed` au seul client token). La moyenne ne suffit donc pas à retrouver le nombre de votes négatifs, seulement un encadrement : entre `(100 - value) × count / 70` et `(100 - value) × count / 40`. Un vélo jamais noté porte `rating: { count: 0 }`, sans `value` ni `lastRatingDateTime`.
+
+**La note repart de zéro à chaque contrôle en atelier.** `rating` ne couvre que les votes reçus depuis `lastControlDateTime` : ce n'est pas l'historique du vélo. Rien ne l'annonce ; c'est déduit du parc complet le 22/09/2026, sur les vélos ayant roulé dans les 3 derniers jours :
+
+| Depuis `lastControlDateTime` | Vélos | `count` médian |
+| ---------------------------- | ----- | -------------- |
+| < 1 jour                     | 493   | 0              |
+| 1 à 2 jours                  | 374   | 9              |
+| 4 à 7 jours                  | 946   | 27             |
+| 14 à 30 jours                | 1 096 | 99             |
+| 30 à 60 jours                | 369   | 226            |
+
+Et pour 99,3 % des vélos notés, `lastRatingDateTime` est postérieur à `lastControlDateTime`. Conséquences pour un client :
+
+- une sortie d'atelier se voit sans historique : `lastControlDateTime` avance et `count` retombe à 0 ;
+- une dégradation se lit entre deux relevés du même vélo, à contrôle inchangé : `(value₂ × count₂ − value₁ × count₁) / (count₂ − count₁)` est la moyenne des votes arrivés entre les deux ; comparer les `value` successives ne suffit pas, les votes récents y sont dilués ;
+- `value` est arrondi à deux décimales : au-delà de quelques centaines d'avis, l'erreur (± 0,005 × `count` sur la somme) brouille un vote isolé. Et 10 à 30 % des sommes `value × count` ne tombent pas sur un multiple de 10 : d'autres valeurs de vote que 100, 60 et 30 existent peut-être.
 
 Route non exercée en capture : les 13 sessions ne contiennent aucun appel à `/rate` ni aucun trajet avec `isRated: true`. Méthode, chemin, media-type et forme du corps sont lus dans les interfaces Retrofit de l'app Android 3.3.10 (statut 📱).
 
@@ -2091,7 +2107,7 @@ Pour tout ce qui concerne les **stations et disponibilités**, il existe des sou
 - `.../gbfs/gbfs_versions.json` liste **2.3** (`/gbfs/v2/`) et **3.0** (`/gbfs/v3/gbfs.json`).
 - TTL : `station_status` **0/1 s** (temps réel), `station_information` 300 s, autres 3600 s.
 - v2 : `num_bikes_available`, `vehicle_types_available[{vehicle_type_id: mechanical|electrical, count}]`, `num_bikes_disabled`, `num_docks_available`, `num_docks_disabled`, `is_installed/is_renting/is_returning`, `last_reported` (epoch).
-- v3 : `num_vehicles_available`, `last_reported` ISO, `name: [{text, language}]`, 465 stations.
+- v3 : `num_vehicles_available`, `num_vehicles_disabled`, `last_reported` ISO, `name: [{text, language}]`, 465 stations. `num_vehicles_disabled` compte les vélos accrochés mais que l'opérateur a rendus indisponibles (335 sur le réseau le 23/09/2026) : c'est le seul signal de panne public, par station et sans numéro de vélo. Aucun flux `vehicle_status` : le détail par vélo, notes et dates d'entretien comprises, n'est que dans `GET /bikes` (§ 5.2).
 - `system_information` : `system_id lyon`, `purchase_url .../fr/offers/groups`, `phone +33130793340`, `feed_contact_email developer@...` (adresse publique JCDecaux, dans le flux GBFS), `terms_url .../fr/documents/cgau/vls`.
 - `vehicle_types` : `mechanical` (`default_reserve_time 900`, `return_constraint any_station`), `electrical` (`max_range_meters 40000`).
 - Doc officielle : [gbfs-usage-fr.md](https://developer.jcdecaux.com/views/doc/gbfs-usage-fr.md) (20 contrats).
