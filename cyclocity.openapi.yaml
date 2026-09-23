@@ -2220,7 +2220,9 @@ components:
               count: { type: integer },
               lastRatingDateTime: { type: string },
             }
-        checked: { type: boolean }
+        checked:
+          type: boolean
+          description: Vélo contrôlé sans aucun avis depuis ; affiché « Révisé » par les clients officiels, à la place de la note. Tombe au premier avis (déduit, README § 5.6)
         createdAt: { type: string }
         updatedAt: { type: string }
         lastTripDateTime:
