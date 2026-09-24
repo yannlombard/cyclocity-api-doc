@@ -473,7 +473,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["contracts", "{{contract}}", "stations", "{{stationNumber}}"]
             },
-            "description": ""
+            "description": "Station bonus : `bonus: true`. Station virtuelle : `overflow: true`, avec `capacity.overflow`, `availabilities.overflow` et la zone `shape.vertices` (`hasShape`). Aucune des deux à Lyon au 24/09/2026 (README § 5.2)."
           },
           "id": "cyclocity-02-00"
         },

@@ -2136,14 +2136,32 @@ components:
             { country: { type: integer }, agency: { type: integer }, district: { type: integer } }
         capacity:
           type: object
-          properties: { main: { type: integer }, overflow: { type: integer } }
-        bonus: { type: boolean }
+          properties:
+            main: { type: integer }
+            overflow: { type: integer, description: Places de la station virtuelle }
+        bonus:
+          type: boolean
+          description: Station bonus, la repose y rapporte des points (règle `TRIP_BONUS`). Aucune à Lyon au 24/09/2026.
+        description: { type: string, description: 'Lue par l''app Android 3.3.10 ; absente de la réponse donnée en exemple (§ 5.2)' }
         address: { type: string }
         location:
           type: object
           properties: { latitude: { type: number }, longitude: { type: number } }
-        hasShape: { type: boolean }
-        overflow: { type: boolean }
+        hasShape: { type: boolean, description: 'Vrai quand `shape` décrit la zone de la station virtuelle' }
+        shape:
+          type: [object, 'null']
+          description: Zone de la station virtuelle, lue par l'app Android 3.3.10
+          properties:
+            vertices:
+              type: array
+              items:
+                type: object
+                properties: { latitude: { type: number }, longitude: { type: number } }
+        overflow:
+          type: boolean
+          description: >-
+            Station virtuelle (débordement) : des vélos peuvent être rendus hors bornette, dans la zone `shape`.
+            Aucune à Lyon au 24/09/2026, où la feature `overflow.enabled` vaut `false`.
         availabilities:
           type: object
           properties:
