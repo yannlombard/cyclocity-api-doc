@@ -876,7 +876,7 @@ Vélos électriques : `type: "ELECTRICAL"`, `hasBattery: true`, `battery: { perc
 | Station                                   | `vls/v3/stations` (carte de l'app)                                                                                 | `stations/{n}` en `vnd.station.v4`                                                                  | Ce qu'en fait l'app Android                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Bonus** (la repose rapporte des points) | `bonus: true`                                                                                                      | `bonus: true`                                                                                       | Pastille `ic_bonus` (repère de carte marqué d'un « + ») à côté du nom, sur l'écran station seulement : le repère de la carte ne change pas. En fin de trajet, la notification push porte `isBonus` et l'app écrit « en déposant votre vélo dans une station bonus, vous gagnez +N PTS » ; la règle de fidélité est `TRIP_BONUS`, 10 points (§ 5.8)                                                                                                                                                                                                                                                                          |
-| **Virtuelle** (`overflow`, débordement)   | `overflow: true`, `overflowStands: { capacity, availabilities }`, `shape: { vertices: [{ latitude, longitude }] }` | `overflow: true`, `capacity.overflow`, `availabilities.overflow`, `hasShape`, `shape: { vertices }` | Repère `ic_marker_open_overflow` à la place de `ic_marker_open`, mais seulement si la feature `overflow.enabled` est vraie (§ 9) et la station ouverte et connectée. Sur l'écran station, un compteur de places virtuelles (`ic_places_overflow`) et une section « Station virtuelle » qui regroupe les vélos sans `standNumber`. La zone est le polygone `shape.vertices`, gardé en base locale mais dessiné par aucun écran. Rendre un vélo dans la zone (« arrêt définitif en station virtuelle ») exige une station pleine, le Bluetooth et d'être à portée ; en reprendre un rapporte `START_TRIP_OVERFLOW`, 20 points |
+| **Virtuelle** (`overflow`, débordement)   | `overflow: true`, `overflowStands: { capacity, availabilities }`, `shape: { vertices: [{ latitude, longitude }] }` | `overflow: true`, `capacity.overflow`, `availabilities.overflow`, `hasShape`, `shape: { vertices }` | Repère `ic_marker_open_overflow` à la place de `ic_marker_open`, mais seulement si la feature `overflow.enabled` est vraie (§ 9) et la station ouverte et connectée. Sur l'écran station, un compteur de places virtuelles (`ic_places_overflow`) et une section « Station virtuelle » qui regroupe les vélos sans `standNumber`. La zone est le polygone `shape.vertices`, gardé en base locale mais dessiné par aucun écran. Rendre un vélo dans la zone (« arrêt définitif en station virtuelle ») se fait en Bluetooth, avec le verrou du vélo (§ 5.10) ; en reprendre un rapporte `START_TRIP_OVERFLOW`, 20 points     |
 
 Le GBFS (§ 10.1) ne transmet ni l'un ni l'autre : `station_information` s'arrête à `address, capacity, lat, lon, name, station_id`, et aucune station n'y porte `is_virtual_station`. Il faut donc l'API JCDecaux v3, `stations/{n}` ou l'`all.json` de la Métropole (§ 10.3), qui en garde les deux champs.
 
@@ -1699,6 +1699,67 @@ L'app n'appelle rien pour débiter les points : c'est le serveur qui les retire.
 
 Lu dans le binaire Android 3.3.10 : `tg/d` pour les routes, `CreateBooking` et `Booking` pour les corps, `il/a$a` pour le parcours, `iq/d$b` pour l'affichage. Seul le `GET` a été capturé, et seulement vide (§ 7.2). Le `POST` n'a **jamais été exercé** : il coûte des points et retire le vélo aux autres usagers pendant 15 min. La table des codes d'erreur de l'app ne contient aucun code propre aux réservations.
 
+### 5.10 Le vélo en Bluetooth : station virtuelle et arrêt minute (📱)
+
+Deux gestes se font sans borne : l'**arrêt définitif en station virtuelle**, qui rend le vélo dans la zone d'une station pleine, et l'**arrêt minute**, une pause hors station, vélo verrouillé. **Aucun endpoint HTTP ne les porte** : l'app parle au verrou du vélo en Bluetooth Low Energy. Il n'y a donc rien à ajouter à l'OpenAPI ni à la collection Postman.
+
+**Les deux sont coupés à Lyon.** Le 24/09/2026, `overflow.enabled` et `trips.stopminute.activated` valent `false` (§ 9).
+
+**Quand l'app les propose.** Pendant un trajet, les boutons « Un arrêt minute » et « Un arrêt définitif en station virtuelle » n'apparaissent qu'à deux conditions :
+
+- la feature correspondante du contrat vaut `true` ;
+- le trajet en cours porte un `token` non vide (§ 5.6).
+
+Aucun champ de `GET /bikes` ni du modèle de vélo n'entre en jeu. C'est la présence du `token` qui signale un vélo équipé du verrou Bluetooth.
+
+**Le protocole.** Le verrou s'annonce sous le nom `ZCGV_{bikeNumber}`, et l'app filtre le scan sur ce nom. Elle attend 10 s au plus pour le trouver, puis 10 s pour se connecter et découvrir les services. Chaque opération refait le scan et la connexion. Les UUID suivent tous la base Bluetooth `0000xxxx-0000-1000-8000-00805f9b34fb` :
+
+| Caractéristique                | Accès                                       | Contenu                                                                           |
+| ------------------------------ | ------------------------------------------- | --------------------------------------------------------------------------------- |
+| `2d41`                         | écriture                                    | `token` du trajet en UTF-8. Ouvre une session d'arrêt minute ou de déverrouillage |
+| `2d43`                         | écriture                                    | `token` du trajet en UTF-8. Ouvre un arrêt en station virtuelle                   |
+| `2d44`                         | écriture                                    | numéro de la station (`number`), entier 32 bits big-endian                        |
+| `2d51`                         | écriture                                    | la chaîne `"1"`. Déverrouille le vélo                                             |
+| `2d50`, dans le service `1d05` | lecture, notifications (descripteur `2902`) | état du verrou, sur un octet (tableau suivant)                                    |
+
+| Octet | État                | Réaction de l'app                                                                                        |
+| ----- | ------------------- | -------------------------------------------------------------------------------------------------------- |
+| `00`  | `CAN_NOT_BE_LOCKED` | aucune                                                                                                   |
+| `01`  | `CAN_BE_LOCKED`     | « Vous pouvez faire votre arrêt minute », ou « Vélo déverrouillé ! Bon trajet ! » selon l'état précédent |
+| `02`  | `LOCKED`            | « Arrêt minute activé ! Appuyez sur le bouton ci-dessous pour déverrouiller votre vélo »                 |
+| `03`  | `UNLOCKED`          | aucune                                                                                                   |
+| `04`  | `HANGED`            | fin de la surveillance, puis relecture du trajet en cours (§ 5.6)                                        |
+| `05`  | `TECHNICAL_ISSUE`   | « Oups, votre vélo ne répond pas, votre demande n'est pas possible. »                                    |
+| autre | `UNKNOWN`           | aucune                                                                                                   |
+
+**Arrêt définitif en station virtuelle** (`rj/a`, présentateur `vn/f2`) :
+
+1. **Position** : l'app prend la station la plus proche de l'usager parmi **toutes** les stations, virtuelles ou non. Elle exige qu'elle soit à moins de `bike.release.distance` (200 m à Lyon). Sinon : « Vous êtes hors de portée de la station virtuelle, vous ne pouvez pas effectuer un arrêt définitif. Rapprochez-vous ! ». Le polygone `shape` n'est pas consulté : être dans la zone n'est vérifié par rien côté app.
+2. **Station** : l'app recharge les vélos puis la station (`GET /bikes?stationNumber=`, `GET /stations/{n}`), et refuse dans trois cas :
+   - la station n'est pas virtuelle : « L'arrêt définitif en station virtuelle n'est pas disponible » ;
+   - plus de `station.overflow.restitutionthreshold` bornes libres (2 à Lyon) : « il reste des points d'attache libres » ;
+   - aucune place virtuelle libre : « la station virtuelle est déjà pleine ».
+3. **Bluetooth** : s'il est coupé, l'app demande « Vous devez activer votre Bluetooth pour réaliser un arrêt définitif en station virtuelle. ». Elle ne demande rien si l'usager a choisi l'activation automatique : c'est une préférence locale, `AUTO_ENABLE_BLUETOOTH_KEY`. Elle allume ensuite l'adaptateur, 10 s au plus. Sur Android 12 et plus, il faut aussi la permission « Appareils à proximité ».
+4. **Jeton** : l'app écrit le `token` du trajet sur `2d43`.
+5. **Station** : dans une nouvelle connexion, l'app écrit le numéro de la station sur `2d44`.
+6. **Consigne** : « Vous pouvez faire votre arrêt définitif dans la zone de la station virtuelle. Pour valider la demande, pressez le verrou situé sur le cadre de votre vélo ».
+7. **Surveillance** : l'app s'abonne aux notifications de `2d50` jusqu'à l'état `HANGED`, puis relit le trajet en cours.
+
+Si le Bluetooth se coupe en route, l'app affiche « Vous devez réactiver votre bluetooth… ». Toute autre erreur donne « L'arrêt définitif en station virtuelle n'est pas disponible ».
+
+**Aucune requête ne clôt le trajet.** L'app n'envoie ni fin de trajet ni position : elle se contente de relire le trajet une fois le verrou `HANGED`. Le serveur apprend donc la fin par un autre chemin, vraisemblablement le vélo lui-même. C'est une **déduction** : le code de l'app ne montre pas ce chemin.
+
+**Reprendre un vélo en station virtuelle.** L'écran station range les vélos sans `standNumber` dans une section « Station virtuelle ». La libération est le `POST .../trips` ordinaire, avec `standNumber: null` (§ 5.6). L'app ajoute « Pour libérer votre Vélo'v, appuyer sur le bouton central du guidon. », et le geste rapporte `START_TRIP_OVERFLOW`, 20 points (§ 5.8). Le code lu n'y fait pas intervenir le Bluetooth.
+
+**Arrêt minute** (`rj/b`, `rj/d`, `rj/o`) :
+
+- **Démarrer** : l'app lit `2d50`, avec 3 essais espacés de 3 s. Si l'état est `UNKNOWN`, `CAN_NOT_BE_LOCKED` ou `TECHNICAL_ISSUE`, elle écrit le `token` sur `2d41`. L'usager verrouille ensuite le vélo, et l'app surveille `2d50` comme plus haut.
+- **Repartir** : l'app écrit le `token` sur `2d41`, avec 3 essais espacés de 3 s, puis `"1"` sur `2d51`.
+- **Forcer le déverrouillage** : même paire d'écritures, sans nouvel essai. L'app le propose quand « Votre vélo est verrouillé mais votre mobile n'a pas reçu l'information de verrouillage ? ». Elle propose aussi de « passer votre carte d'accès sur le guidon de votre vélo » : le boîtier du guidon lit donc la carte Vélo'v.
+
+Lu dans le binaire Android 3.3.10 : `CGVService` pour le protocole, `ji/a` pour les états, `rj/a`, `rj/b`, `rj/d` et `rj/o` pour les parcours, `om/a` pour la distance, `ContractsMapper` pour les features. **Rien de tout cela n'a été exercé** : aucun vélo de Lyon ne l'accepte tant que les deux features sont fausses. L'app iOS n'a pas été lue.
+
+
 ---
 
 ## 6. Process (souscription, paiement, changement de badge)
@@ -2205,6 +2266,8 @@ Apple (16:20:41 -> 16:20:55) suit le même chemin, avec `POST .../broker/lyon-ap
 | `gbfs.opening.hours`                                            | `Mo-Su,PH 00:00-24:00`                                           |                                                  |
 | `migration.done`                                                | `true`                                                           | Bascule VLS1 vers VLS2 terminée                  |
 | `overflow.enabled`                                              | `false`                                                          | Pas de débordement (stands overflow) à Lyon      |
+| `station.overflow.restitutionthreshold`                         | `2`                                                              | Bornes libres tolérées, station virtuelle        |
+| `trips.stopminute.activated`                                    | `false`                                                          | Pas d'arrêt minute à Lyon (§ 5.10)               |
 | `vld.enable` / `cargo.enable`                                   | `false`                                                          | Pas de VLD ni cargo                              |
 
 ---
