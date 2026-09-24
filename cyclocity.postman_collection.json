@@ -1685,7 +1685,7 @@
                 "trips"
               ]
             },
-            "description": "ACTION RÉELLE ET POTENTIELLEMENT PAYANTE : libère physiquement un vélo sur votre abonnement. Valeurs à prendre dans « Vélos d'une station » : les variables sont insérées sans guillemets, elles doivent contenir des entiers.",
+            "description": "ACTION RÉELLE ET POTENTIELLEMENT PAYANTE : libère physiquement un vélo sur votre abonnement. Valeurs à prendre dans « Vélos d'une station » : les variables sont insérées sans guillemets, elles doivent contenir des entiers. La requête ne porte aucune position : un client doit lui-même vérifier que l'utilisateur est à moins de 200 m de la station (`bike.release.distance`), que le compte n'est pas verrouillé et que le paiement est valide. `200` ne veut pas dire libéré : seul `transactionState: OK` libère ; `ABORT`, `NOK`, `TIME_OUT`, `NOT_CONNECTED` sont des échecs. Refus métier (`code`) et messages de l'app : README § 5.6.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"stationNumber\": {{stationNumber}},\n  \"bikeNumber\": {{bikeNumber}},\n  \"standNumber\": {{standNumber}},\n  \"typeFrom\": \"SMARTPHONE\"\n}",

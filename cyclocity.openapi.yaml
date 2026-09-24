@@ -1366,6 +1366,11 @@ paths:
         courant non verrouillé. Après le `200`, la borne libère le vélo quelques secondes ; s'il n'est pas retiré,
         elle se reverrouille et aucun trajet n'est créé. L'app polle ensuite `GET .../trips/ongoing` toutes les
         5-10 s. **Action réelle et potentiellement payante.**
+
+        La requête ne porte aucune position : c'est le client qui vérifie, avant l'appel, que l'utilisateur est à
+        moins de `bike.release.distance` (200 m) de la station, que le compte n'est pas verrouillé (`isLocked`) et
+        que le moyen de paiement est valide (`paymentValid` de `GET .../payment`). L'app Android 3.3.10 n'envoie
+        que le `Content-Type`, sans `Accept`. Contrôles, messages par `transactionState` et codes de refus : README § 5.6.
       security: [{ Taknv1: [], Identity: [] }]
       x-status: observed
       requestBody:
@@ -1384,13 +1389,29 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/ForbiddenIdentity' }
         '200':
-          description: Ordre accepté
+          description: >-
+            Ordre transmis. Seul `OK` libère le vélo ; `ABORT`, `NOK`, `TIME_OUT` (le point d'attache n'a pas répondu)
+            et `NOT_CONNECTED` (aucun vélo sur le point d'attache) sont des échecs rendus avec ce même `200`.
           content:
             application/vnd.trip.v5+json:
               schema:
                 type: object
                 properties:
-                  transactionState: { type: string, examples: [OK] }
+                  transactionState:
+                    type: string
+                    enum: [NOT_CONNECTED, UNKNOW, UNSTARTED, RUNNING, OK, NOK, ABORT, TIME_OUT]
+                    examples: [OK]
+        '4XX':
+          description: >-
+            Refus métier, lu dans l'app Android et jamais capturé (statut exact inconnu) :
+            `trips.exception.invalid.customer.maxBikesRented` (un autre trajet est en cours),
+            `kiwi.exception.customer.rent.time.limit` (délai entre deux courses non écoulé),
+            `kiwi.exception.customer.insuffisant.right` (abonnement hors validité),
+            `kiwi.exception.customer.paymentmode.not.valid` (moyen de paiement à mettre à jour),
+            `kiwi.exception.no.release.bike` (problème technique), `trips.exception.invalid.customer.credit`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
   /contracts/{contract}/accounts/{accountId}/trips/ongoing:
     parameters:
       - $ref: '#/components/parameters/contract'

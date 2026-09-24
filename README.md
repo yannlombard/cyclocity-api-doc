@@ -557,7 +557,7 @@ Format JSON standard, doublé d'un header **`Bloot-Error-Code`** :
 { "code": "stats.exception.stats.not.found", "message": "No stats found" }
 ```
 
-Codes rencontrés : `auth.error.token.expiredRefreshToken` (401), `stats.exception.stats.not.found` (404), `document.exception.notfound` (404), `rewards.exception.notfound.account` (404), `accounts.exception.notfound.searched.periods` (404, § 5.5), `identities.exception.bad.logon` (401 via redirect). Codes présents dans le front : `accounts.exception.conflict.account.email.exist`, `accounts.exception.notacceptable.account.phone.invalid`, `contracts.exception.in.maintenance.contract`, `pay.exception.ingenico.payment-methods.rejected`, `pre-authorization.exception`.
+Codes rencontrés : `auth.error.token.expiredRefreshToken` (401), `stats.exception.stats.not.found` (404), `document.exception.notfound` (404), `rewards.exception.notfound.account` (404), `accounts.exception.notfound.searched.periods` (404, § 5.5), `identities.exception.bad.logon` (401 via redirect). Codes présents dans le front : `accounts.exception.conflict.account.email.exist`, `accounts.exception.notacceptable.account.phone.invalid`, `contracts.exception.in.maintenance.contract`, `pay.exception.ingenico.payment-methods.rejected`, `pre-authorization.exception`. Refus du déverrouillage lus dans l'app Android : § 5.6.
 
 Un `403` avec page HTML Tomcat signale un `Identity` manquant/invalide ; un `401` sans corps un `Taknv1` manquant.
 
@@ -1238,7 +1238,39 @@ Accept: application/vnd.trip.v5+json
 { "stationNumber": 2002, "bikeNumber": 20449, "standNumber": 1, "typeFrom": "SMARTPHONE" }
 ```
 
--> `200 { "transactionState": "OK" }`. `{subscriptionId}` = `id` d'un abonnement courant non verrouillé (`?isLocked=0&periods=CURRENT&type=ST|LT`). Si aucun abonnement valide, l'app propose l'offre `default.short.term.offer.id` (75171). Contraintes côté app : distance inférieure à `bike.release.distance` (200 m) de la station (feature `geolocation.check.disabled: false`).
+-> `200 { "transactionState": "OK" }`. `{subscriptionId}` = `id` d'un abonnement courant non verrouillé (`?isLocked=0&periods=CURRENT&type=ST|LT`). Si aucun abonnement valide, l'app propose l'offre `default.short.term.offer.id` (75171).
+
+Les en-têtes ci-dessus sont ceux de la capture (session 8). L'interface Retrofit de l'app Android 3.3.10 (`tg/s`) ne déclare que le `Content-Type: application/vnd.trip.v5+json`, **sans `Accept`** ; la réponse ne porte que `transactionState`. Les trois nombres sont des `Integer` nullables : `standNumber` est absent pour un vélo de station virtuelle (§ 5.2), ce qui n'arrive pas à Lyon.
+
+**La requête ne porte aucune position.** Le serveur ne peut donc pas vérifier que l'utilisateur se tient devant la borne : seul le client l'empêche de libérer un vélo à distance, qu'un autre pourrait emporter sur son compte.
+
+**Ce que fait l'app Android avant le `POST`** (use case `il/g$a`, lu dans l'APK 3.3.10, jamais capturé tel quel) :
+
+1. Trois contrôles locaux : l'utilisateur est connecté, le compte n'est pas verrouillé (`isLocked` de `GET /accounts/{id}`), le moyen de paiement est valide (`paymentValid` de `GET /accounts/{id}/payment`, § 5.7). Sinon, une boîte de dialogue dédiée et aucun appel.
+2. Sauf si la feature `geolocation.check.disabled` vaut `true` : une position fraîche (GPS coupé : l'app ouvre les réglages ; permission refusée : « Vous devez être géolocalisé afin de pouvoir libérer un vélo. »). La distance à la station — position de `GET /stations/{n}`, à défaut celle de l'open data — ne doit pas dépasser `bike.release.distance` (200 m), sinon : « Vous y êtes presque ! Approchez-vous à moins de 200m d'une station pour pouvoir libérer un vélo. »
+3. `GET /accounts/{id}/subscriptions?periods=CURRENT&typeList=ST&typeList=LT&isLocked=false` (`vnd.subscription.v6`, **une seule requête**, là où l'écran station en envoie deux avec `type=`, § 7.2), puis `GET /offers`. L'app garde les abonnements non `locked` qui ont au moins une période. Aucun : l'offre `default.short.term.offer.id`, ou à défaut l'écran des offres. Un seul : il est pris. Plusieurs : l'utilisateur choisit.
+4. Le `POST`, avec `typeFrom: SMARTPHONE`.
+
+**Ce qu'elle affiche après** (`StationActivity`, `kq/j`). Sur `OK` : « Votre vélo vous attend au point d'attache n° 12 ! » et « Pour le retirer, appuyez sur le bouton situé sur le point d'attache. », avec un compte à rebours de 60 s qui ramène à la carte. L'écran ne polle rien lui-même : `trips/ongoing` est relu par le polling général. Sur tout autre `transactionState` (`res/values-fr/strings.xml`) :
+
+| `transactionState` | Message                                                              |
+| ------------------ | -------------------------------------------------------------------- |
+| `ABORT`            | « La libération du vélo a été annulée. »                             |
+| `NOK`              | « La libération du vélo a échoué. »                                  |
+| `TIME_OUT`         | « Le point d'attache n'a pas répondu à temps pour libérer le vélo. » |
+| `NOT_CONNECTED`    | « Aucun vélo n'est connecté à la borne… »                            |
+| tout autre état    | « La libération du vélo a échoué pour une raison inconnue… »         |
+
+**Refus métier** : le corps d'erreur standard (§ 4.2) porte un `code` que l'app traduit (`ci/g`, tag `ApiErrorCodes`). Aucun n'a été capturé : leur statut HTTP n'est pas connu.
+
+| `code`                                            | Message de l'app                                                |
+| ------------------------------------------------- | --------------------------------------------------------------- |
+| `trips.exception.invalid.customer.maxBikesRented` | « Impossible de libérer le vélo, un autre trajet est en cours » |
+| `kiwi.exception.customer.rent.time.limit`         | « Délai entre deux courses non écoulé. »                        |
+| `kiwi.exception.customer.insuffisant.right`       | « Abonnement hors validité. »                                   |
+| `kiwi.exception.customer.paymentmode.not.valid`   | « Veuillez mettre à jour votre mode de paiement. »              |
+| `kiwi.exception.no.release.bike`                  | « Problème technique lors de la libération de vélo. »           |
+| `trips.exception.invalid.customer.credit`         | reconnu, sans message propre (message générique)                |
 
 Après le `200`, la borne libère le vélo quelques secondes ; si le vélo n'est pas retiré, elle se reverrouille et **aucun trajet n'est créé** (`trips/ongoing` reste `[]`). L'app **polle `trips/ongoing` toutes les ~5-10 s** ; ~10 s après le décrochage le trajet apparaît :
 
