@@ -629,6 +629,9 @@ paths:
         `?stationNumber=` -> vélos garés dans la station (c'est de là que viennent `bikeNumber`/`standNumber` du
         déverrouillage). `?number=` -> un vélo (tableau à 1 élément). Sans filtre -> **tout le parc** (17 652
         entrées, ~1,3 Mo, tous statuts). Un `User-Agent` littéralement `node` est bloqué par le WAF (403).
+        `v4` (site web) est un sur-ensemble de `v3` (app mobile officielle) : mêmes champs, plus
+        `lastTripDateTime`, `lastControlDateTime`, `nextCheck`, `lastRevisionDateTime`, `nextReview`,
+        `isReserved` et `energySource` (comparé le 24/09/2026).
       x-status: live
       parameters:
         - { name: stationNumber, in: query, schema: { type: integer }, example: 2002 }
@@ -2307,7 +2310,7 @@ components:
           description: Ne recoupe pas le statut `RESERVED` (880 vélos `true` le 23/09/2026, surtout `RENTED` et `AVAILABLE`, pour un seul `RESERVED`) ; sens non établi, lu par aucun client. `bikes.v4` seulement
         energySource:
           type: integer
-          description: '`0` mécanique, `1` ou `2` électrique ; absent sur les vélos à batterie `REMOVABLE`. `bikes.v4` seulement, lu par aucun client'
+          description: '`0` mécanique, `1` ou `2` électrique ; absent sur les vélos à batterie `REMOVABLE` (e-Vélo''v à batterie amovible). `bikes.v4` seulement, lu par aucun client'
         lastTripDateTime:
           type: string
           description: Dernier trajet ; le seul champ qui dise si le vélo roule vraiment (`status` garde des fiches dormantes)

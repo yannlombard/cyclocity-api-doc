@@ -545,7 +545,7 @@
               },
               {
                 "key": "Accept",
-                "value": "application/vnd.bikes.v3+json"
+                "value": "application/vnd.bikes.v4+json"
               }
             ],
             "url": {
