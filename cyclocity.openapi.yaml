@@ -985,7 +985,11 @@ paths:
     get:
       tags: [Compte]
       operationId: listBookings
-      summary: Réservations de vélo (`[]` observé)
+      summary: Réservations en cours du compte (`[]` observé)
+      description: |
+        Capturé sur l'app iOS avec `Accept: */*`, toujours vide. L'app Android croise la liste avec
+        `GET /bikes` par `bikeId` : un vélo `RESERVED` absent de la liste est réservé par un autre
+        usager, et l'app refuse de le libérer. README § 5.9.
       security: [{ Taknv1: [], Identity: [] }]
       x-status: observed
       responses:
@@ -994,17 +998,35 @@ paths:
         '200':
           description: OK
           content:
-            { application/booking+json: { schema: { type: array, items: { type: object } } } }
+            application/booking+json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Booking' } }
     post:
       tags: [Compte]
       operationId: createBooking
-      summary: Réserver un vélo (15 min, coût 10 pts), rapporté par VLSKit
+      summary: Réserver un vélo (15 min, 10 points de fidélité)
+      description: |
+        Lu dans le binaire Android 3.3.10 (`tg/d`, `CreateBooking`, `il/a$a`), jamais exercé : l'appel
+        coûte des points et retire le vélo aux autres usagers pendant la durée de la feature
+        `bike.booking.duration` (900 s à Lyon). Aucun en-tête déclaré : le corps part en
+        `application/json` (Gson), sans `Accept`. Avant l'appel, l'app vérifie le solde
+        (`GET .../rewards`) contre le `reward` de l'entrée `BIKE_BOOKING` de
+        `GET /rewards/configurations`, puis choisit un abonnement ST ou LT en cours. Pas de route
+        d'annulation. README § 5.9.
       security: [{ Taknv1: [], Identity: [] }]
-      x-status: reported
+      x-status: decompiled
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateBooking' }
       responses:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/ForbiddenIdentity' }
-        '200': { description: OK }
+        '200':
+          description: La réservation créée
+          content:
+            application/booking+json:
+              schema: { $ref: '#/components/schemas/Booking' }
 
   # ---------------------------------------------------------------- Offres et badges
   /contracts/{contract}/offers:
@@ -2526,6 +2548,45 @@ components:
             la branche par défaut du mapping. Prévoir un repli pour un code inconnu.
           examples: [DT_DECLARED_313]
         isElectricBike: { type: boolean, description: Motif réservé aux vélos électriques }
+
+    CreateBooking:
+      type: object
+      description: Corps de `POST .../bookings` (README § 5.9).
+      required: [stationId, stationNumber, standNumber, subscriptionId, bikeId]
+      properties:
+        stationId:
+          type: string
+          format: uuid
+          description: '`id` de la station (`GET /stations/{n}`), pas son numéro'
+        stationNumber: { type: integer, examples: [2002] }
+        standNumber: { type: integer, examples: [12] }
+        subscriptionId:
+          type: string
+          format: uuid
+          description: Abonnement ST ou LT en cours, non verrouillé
+        bikeId:
+          type: string
+          format: uuid
+          description: '`id` du vélo (`GET /bikes`), pas son numéro'
+
+    Booking:
+      type: object
+      description: Une réservation, rendue par `POST` et listée par `GET .../bookings`.
+      properties:
+        id: { type: string, format: uuid }
+        contractName: { type: string, examples: [lyon] }
+        accountId: { type: string, format: uuid }
+        subscriptionId: { type: string, format: uuid }
+        stationId: { type: string, format: uuid }
+        stationNumber: { type: integer, examples: [2002] }
+        standNumber: { type: integer, examples: [12] }
+        bikeId: { type: string, format: uuid }
+        endTime:
+          type: string
+          description: |
+            Fin de la réservation. Format jamais capturé ; probablement la convention des autres dates
+            (ISO 8601 sans fuseau, heure locale du contrat).
+          examples: ['2026-03-02T09:47:14']
 
     Transaction:
       type: object

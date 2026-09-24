@@ -1011,9 +1011,45 @@
               "host": ["{{baseUrl}}"],
               "path": ["contracts", "{{contract}}", "accounts", "{{accountId}}", "bookings"]
             },
-            "description": ""
+            "description": "Réservations en cours : [{ id, contractName, accountId, subscriptionId, stationId, stationNumber, standNumber, bikeId, endTime }], [] sans réservation (seule forme capturée). Sans Accept, réponse en application/booking+json. L'app Android croise la liste avec les vélos de la station par bikeId : un vélo RESERVED absent de la liste est réservé par un autre usager. Voir § 5.9."
           },
           "id": "cyclocity-03-10"
+        },
+        {
+          "name": "📱 ⚠️ Réserver un vélo (15 min, débite 10 points)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Taknv1 {{takn}}"
+              },
+              {
+                "key": "Identity",
+                "value": "{{identity}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contracts/{{contract}}/accounts/{{accountId}}/bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["contracts", "{{contract}}", "accounts", "{{accountId}}", "bookings"]
+            },
+            "description": "ACTION RÉELLE : débite 10 points de fidélité et retire le vélo aux autres usagers pendant 15 min (feature bike.booking.duration), sans route d'annulation. Lu dans le binaire Android 3.3.10, jamais exercé (📱). stationId est l'id (UUID) de « Détail d'une station », bikeId l'id (UUID) du vélo dans « Vélos d'une station » — ni l'un ni l'autre n'est un numéro. subscriptionId : un abonnement ST ou LT en cours, non verrouillé. L'app ne déclare aucun en-tête : corps en application/json, pas d'Accept. Avant l'appel, elle vérifie que le solde (GET …/rewards) couvre le reward de BIKE_BOOKING (« Règles du programme fidélité »). Réponse : la réservation, avec endTime. Voir § 5.9.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stationId\": \"{{stationId}}\",\n  \"stationNumber\": {{stationNumber}},\n  \"standNumber\": {{standNumber}},\n  \"subscriptionId\": \"{{subscriptionId}}\",\n  \"bikeId\": \"{{bikeId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "id": "cyclocity-03-11"
         }
       ],
       "id": "cyclocity-03"
@@ -2449,6 +2485,14 @@
     },
     {
       "key": "endDateMs",
+      "value": ""
+    },
+    {
+      "key": "stationId",
+      "value": ""
+    },
+    {
+      "key": "bikeId",
       "value": ""
     }
   ]

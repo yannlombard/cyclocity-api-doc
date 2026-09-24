@@ -887,7 +887,7 @@ Vélos électriques : `type: "ELECTRICAL"`, `hasBattery: true`, `battery: { perc
 | `POST` / `DELETE` | `/accounts/{id}/devices` `{"deviceToken": "{FCM}", "platform": "IOS"}` | C+I  | Enregistrer / supprimer le token push (au login / logout)                                                          | ✅      |
 | `GET`             | `/accounts/{id}/devices`                                               | C+I  | Appareils enregistrés                                                                                              | 📚      |
 | `POST` / `DELETE` | `/accounts/{id}/stationbookmarks/{stationNumber}`                      | C+I  | Ajouter (`POST` -> `200` avec le numéro, ex. `2002`) / retirer (`DELETE` -> `204 No Content`) une station favorite | ✅ live |
-| `GET` / `POST`    | `/accounts/{id}/bookings`                                              | C+I  | Réservations de vélo (`[]` observé) / réserver (`CreateBooking`, 15 min, coût 10 pts)                              | ✅ / 🧩 |
+| `GET` / `POST`    | `/accounts/{id}/bookings`                                              | C+I  | Réservations de vélo (`[]` observé) / réserver un vélo pour 15 min et 10 points (§ 5.9)                            | ✅ / 📱 |
 | `POST`            | `/accounts/{id}/mail`                                                  | C+I  | Envoyer un message au service client (multipart, « nous contacter »)                                               | 🌐 🧩   |
 | `GET`             | `/accounts/{id}/documents/{id}`                                        | C+I  | Document lié au compte                                                                                             | 🌐      |
 | `GET`             | `/accounts/{id}/bikemodel`                                             | C+I  | Modèle de vélo (location longue durée)                                                                             | 🌐      |
@@ -1580,6 +1580,82 @@ curl -s "https://api.cyclocity.fr/contracts/lyon/rewards/configurations" -H "Aut
 
 Plafond de crédit : 500 (`rewards.credit.maximum.amount`).
 
+### 5.9 Réservation d'un vélo (📱)
+
+| Méth.  | Endpoint                  | Auth | Description                                                     | Statut |
+| ------ | ------------------------- | ---- | --------------------------------------------------------------- | ------ |
+| `GET`  | `/accounts/{id}/bookings` | C+I  | Réservations en cours du compte (`[]` sans réservation)         | ✅     |
+| `POST` | `/accounts/{id}/bookings` | C+I  | Réserver un vélo accroché à une borne, pour 15 min et 10 points | 📱     |
+
+Le binaire Android 3.3.10 ne déclare ni `DELETE` ni `PATCH` sur cette ressource : une réservation ne s'annule pas depuis l'app. Elle expire, ou se consomme en libérant le vélo.
+
+```http
+POST /contracts/lyon/accounts/{accountId}/bookings
+Content-Type: application/json; charset=UTF-8
+Authorization: Taknv1 {clientToken}
+Identity: {accessToken}
+```
+
+```json
+{
+  "stationId": "00000000-0000-0000-0000-000000000000",
+  "stationNumber": 2002,
+  "standNumber": 12,
+  "subscriptionId": "00000000-0000-0000-0000-000000000000",
+  "bikeId": "00000000-0000-0000-0000-000000000000"
+}
+```
+
+| Champ            | Valeur                                                                                                       |
+| ---------------- | ------------------------------------------------------------------------------------------------------------ |
+| `stationId`      | `id` (UUID) de la station, lu dans `GET /stations/{n}` (§ 5.2). Pas son numéro                               |
+| `stationNumber`  | numéro de la station                                                                                         |
+| `standNumber`    | numéro de la borne. L'app refuse de réserver un vélo sans borne                                              |
+| `subscriptionId` | UUID d'un abonnement `ST` ou `LT` en cours et non verrouillé (§ 5.5)                                         |
+| `bikeId`         | `id` (UUID) du vélo, lu dans `GET /bikes`. Pas son **numéro**, à l'inverse de `/trips/{tripId}/rate` (§ 5.6) |
+
+L'interface Retrofit ne déclare **aucun en-tête** : le corps part en `application/json; charset=UTF-8` (convertisseur Gson) et sans `Accept`. Le `GET`, capturé sur l'app iOS avec `Accept: */*`, répond `Content-Type: application/booking+json`.
+
+Réponse du `POST`, et forme de chaque élément du `GET` :
+
+```json
+{
+  "id": "00000000-0000-0000-0000-000000000000",
+  "contractName": "lyon",
+  "accountId": "00000000-0000-0000-0000-000000000000",
+  "subscriptionId": "00000000-0000-0000-0000-000000000000",
+  "stationId": "00000000-0000-0000-0000-000000000000",
+  "stationNumber": 2002,
+  "standNumber": 12,
+  "bikeId": "00000000-0000-0000-0000-000000000000",
+  "endTime": "2026-03-02T09:47:14"
+}
+```
+
+`endTime` est la fin de la réservation. Son format n'a jamais été capturé : l'exemple suppose la convention des autres dates (§ 4.3).
+
+**Ce que fait l'app Android avant le `POST`** (`il/a$a`) :
+
+1. Trois contrôles locaux : l'utilisateur est connecté, le compte n'est pas verrouillé, le moyen de paiement est valide.
+2. `GET /accounts/{id}/rewards` (`vnd.rewards.v5`). Une erreur, par exemple le `404` d'un compte sans points, vaut un solde vide.
+3. `GET /rewards/configurations` (`vnd.rewards.v5`). L'app y cherche l'entrée `BIKE_BOOKING` (§ 5.8). Absente ou `enable: false` : la réservation est indisponible. Solde inférieur à son `reward` : « Vous n'avez pas encore suffisamment de points de fidélité pour réserver un vélo ».
+4. Une confirmation : « Votre vélo sera réservé pendant 15mn. Cette réservation vous coûtera 10 points de fidélité. » Les 15 min viennent de la feature `bike.booking.duration` (§ 9), les 10 points du `reward` de `BIKE_BOOKING`.
+5. `GET /accounts/{id}/subscriptions?periods=CURRENT&typeList=ST&typeList=LT&isLocked=false` (`vnd.subscription.v6`), puis `GET /offers` (`vnd.offer.v2`) pour les libellés. L'app ne garde que les abonnements non `locked` qui ont au moins une période. Aucun : erreur « pas d'abonnement ». Un seul : il est pris. Plusieurs : l'utilisateur choisit.
+6. Le `POST` ci-dessus.
+7. « Votre vélo vous attend au point d'attache n°12 pendant 15mn. », puis la station se recharge.
+
+L'app n'appelle rien pour débiter les points : c'est le serveur qui les retire.
+
+**L'affichage.** L'app croise `GET /bookings` et `GET /bikes` par `bikeId` (`gh/b`) :
+
+- un vélo `RESERVED` réservé par le compte affiche « Vite ! Votre vélo vous attend » et le temps restant jusqu'à `endTime`. Il se libère comme un autre, par `POST .../trips` (§ 5.6) ;
+- un vélo `RESERVED` sans réservation du compte affiche « Réservé par un utilisateur ». L'app refuse de le libérer sans appeler l'API ;
+- une fois `endTime` passé, l'app tient la réservation pour expirée, même si le vélo porte encore le statut `RESERVED`.
+
+« Réserver ce vélo » n'est proposé que si trois conditions sont réunies : le contrat déclare la feature `bike.booking.duration` (sa seule présence suffit, la valeur n'est pas lue), le vélo est à une borne, et il n'est pas déjà réservé.
+
+Lu dans le binaire Android 3.3.10 : `tg/d` pour les routes, `CreateBooking` et `Booking` pour les corps, `il/a$a` pour le parcours, `iq/d$b` pour l'affichage. Seul le `GET` a été capturé, et seulement vide (§ 7.2). Le `POST` n'a **jamais été exercé** : il coûte des points et retire le vélo aux autres usagers pendant 15 min. La table des codes d'erreur de l'app ne contient aucun code propre aux réservations.
+
 ---
 
 ## 6. Process (souscription, paiement, changement de badge)
@@ -1817,7 +1893,7 @@ Après un login (app 3.6.1) : `GET /accounts/{email}/id` **x4 en parallèle** (c
 ```text
 GET /accounts/{id}  |  GET /accounts/{id}/payment
 GET /subscriptions?isLocked=0&periods=CURRENT&type=ST  +  ...&type=LT   (parallèle)
-GET /accounts/{id}/bookings  |  GET /bikes?stationNumber={n}
+GET /accounts/{id}/bookings  |  GET /bikes?stationNumber={n}      (croisés par bikeId, § 5.9)
 GET /stations/{n}
 (GET /offers si aucun abonnement valide -> proposition d'achat)
 ```
@@ -2055,7 +2131,7 @@ Apple (16:20:41 -> 16:20:55) suit le même chemin, avec `POST .../broker/lyon-ap
 | `bike.release.distance`                                         | `200`                                                            | Distance max (m) pour déverrouiller depuis l'app |
 | `station.check.distance`                                        | `1500`                                                           | Rayon (m) de recherche de stations               |
 | `geolocation.check.disabled`                                    | `false`                                                          | Contrôle de proximité actif                      |
-| `bike.booking.duration`                                         | `900`                                                            | Durée d'une réservation (s)                      |
+| `bike.booking.duration`                                         | `900`                                                            | Durée (s) ; sa présence active la réservation    |
 | `bike.station.disabled`                                         | `101010`                                                         | `stationNumber` d'un vélo hors station           |
 | `max.nb.tickets`                                                | `10`                                                             | Nb max de tickets                                |
 | `available.payment.methods`                                     | `["CB","ADP"]`                                                   |                                                  |
