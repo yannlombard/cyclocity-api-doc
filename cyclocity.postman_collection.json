@@ -1733,7 +1733,7 @@
                 "rate"
               ]
             },
-            "description": "Une seule notation par trajet, sur un trajet dont isRated vaut false ({{tripId}} = id d'une entrée de « Historique des trajets »). bikeId est le NUMÉRO du vélo (bikeNumber du trajet), pas son UUID. recommended est binaire ; cdrCode ne se remplit que si recommended vaut false, avec un code de « Types de défauts » (1. Contrat). Réponse : le corps en écho. Route lue dans l'app Android 3.3.10, non exercée en capture.",
+            "description": "Une seule notation par trajet, sur un trajet dont isRated vaut false ({{tripId}} = id d'une entrée de « Historique des trajets »). bikeId est le NUMÉRO du vélo (bikeNumber du trajet), pas son UUID. recommended est binaire ; cdrCode ne se remplit que si recommended vaut false, avec un code de « Types de défauts » (1. Contrat). Pour « Je déconseille », l'app lance d'abord le process CREATE_BIKE_DEFECT (8. Process) et n'envoie cette notation que s'il réussit. Délai : 3 heures après la fin du trajet. Réponse : le corps en écho. Route lue dans l'app Android 3.3.10, non exercée en capture.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"bikeId\": {{bikeNumber}},\n  \"recommended\": true,\n  \"contract\": \"{{contract}}\",\n  \"cdrCode\": null\n}",
@@ -2334,6 +2334,42 @@
           "id": "cyclocity-08-00b"
         },
         {
+          "name": "📱 ⚠️ Signaler un défaut de vélo (CREATE_BIKE_DEFECT, ouvre un signalement réel)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Taknv1 {{takn}}"
+              },
+              {
+                "key": "Identity",
+                "value": "{{identity}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.processes.v2+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contracts/{{contract}}/accounts/{{accountId}}/processes",
+              "host": ["{{baseUrl}}"],
+              "path": ["contracts", "{{contract}}", "accounts", "{{accountId}}", "processes"]
+            },
+            "description": "ACTION RÉELLE : ouvre un signalement chez l'opérateur, et bikeDefectDeclaredBlocked à true peut retirer le vélo du service. Ne pas l'essayer sur un vélo en bon état. C'est l'écran « Je déconseille ce vélo » de l'app Android : ce process part d'abord, et la notation (6. Trajets, /rate avec recommended false et le cdrCode du motif) seulement s'il réussit. bikeDefectTypeId est l'id (UUID) d'une entrée de « Types de défauts » (1. Contrat), pas son cdrCode ; bikeNumber est le numéro du vélo. Aucun identifiant de trajet. processOrigin: \"Selfcare\" s'ajoute quand le signalement part de « Besoin d'aide ». Pas de returns, pas d'Accept déclaré ; réponse : ProcessResult. Lu dans le binaire Android 3.3.10, jamais exercé (📱). Voir § 6.4.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"CREATE_BIKE_DEFECT\",\n  \"parameters\": {\n    \"bikeDefectTypeId\": \"<[Format : java.util.UUID]>{{defectTypeId}}\",\n    \"bikeNumber\": \"<[Format : java.lang.Long]>{{bikeNumber}}\",\n    \"bikeDefectDomain\": \"BIKE\",\n    \"bikeDefectIsClosed\": false,\n    \"bikeDefectComment\": \"Frein arrière qui frotte\",\n    \"bikeDefectUserType\": \"CUSTOMER\",\n    \"accountId\": \"<[Format : java.util.UUID]>{{accountId}}\",\n    \"bikeDefectDeclaredBlocked\": false,\n    \"platform\": \"MOBILE\",\n    \"contract\": \"{{contract}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "id": "cyclocity-08-00c"
+        },
+        {
           "name": "🌐 Reprendre / confirmer un process (toResume)",
           "request": {
             "method": "PATCH",
@@ -2486,6 +2522,11 @@
     {
       "key": "endDateMs",
       "value": ""
+    },
+    {
+      "key": "defectTypeId",
+      "value": "",
+      "description": "id (UUID) d'une entrée de GET /defect-types, pour CREATE_BIKE_DEFECT"
     },
     {
       "key": "stationId",

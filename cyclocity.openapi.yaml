@@ -531,8 +531,10 @@ paths:
       summary: 'Types de défauts signalables (exige `Accept: application/vnd.defect-type.v1+json`)'
       description: |
         Alimente le motif d'une notation négative : c'est le `cdrCode` de l'entrée retenue qui part dans le
-        corps de `POST .../trips/{tripId}/rate`. `category=DECLARED_CUSTOMER` correspond à ce que déclare un
-        client, `DECLARED_AGENT` à ce que saisit un agent.
+        corps de `POST .../trips/{tripId}/rate`, et son `id` qui part dans le process `CREATE_BIKE_DEFECT`
+        (`bikeDefectTypeId`). `category=DECLARED_CUSTOMER` correspond à ce que déclare un client,
+        `DECLARED_AGENT` à ce que saisit un agent. Pour un vélo qui n'est pas `ELECTRICAL`, l'app Android
+        retire les entrées `isElectricBike: true` avant de les afficher.
       x-status: decompiled
       parameters:
         - {
@@ -1490,6 +1492,11 @@ paths:
         crédite la règle `RATE_BIKE` (5 points). En cas de `recommended: false`, `cdrCode` porte le motif choisi
         dans `GET /contracts/{contract}/defect-types?domain=BIKE&category=DECLARED_CUSTOMER&active=true`.
 
+        « Je déconseille » fait deux appels : l'app lance d'abord le process `CREATE_BIKE_DEFECT` (motif,
+        commentaire, demande de retrait du vélo ; voir `startProcess` et le § 6.4 du README), puis, seulement
+        s'il réussit, cette notation avec `recommended: false` et le `cdrCode` choisi. La notation reste
+        possible 3 heures après la fin du trajet.
+
         Route non exercée en capture : méthode, media-type et forme du corps viennent des interfaces Retrofit
         de l'app Android officielle 3.3.10.
       security: [{ Taknv1: [], Identity: [] }]
@@ -1873,6 +1880,9 @@ paths:
         les parcours selfcare l'utilisent pour obtenir un verdict immédiat (`SELFCARE_TRIP_AMOUNT` et
         `SELFCARE_RETURNED_BIKE` -> `incident_type`, `SELFCARE_RESCIND_SUBSCRIPTION` ->
         `subscription_condition_status`). Voir § 6.3 du README.
+        `CREATE_BIKE_DEFECT` signale un défaut de vélo (§ 6.4) : sans `returns` ni identifiant de trajet ;
+        `bikeDefectTypeId` est l'`id` d'un type de `GET .../defect-types`, `bikeDefectDeclaredBlocked` demande
+        que le vélo ne soit plus proposé. Lu dans le binaire Android 3.3.10, jamais exercé.
       security: [{ Taknv1: [], Identity: [] }]
       x-status: observed
       parameters:
@@ -1915,6 +1925,21 @@ paths:
                     browserColorDepth: 32
                     browserScreenWidth: 390
                     browserScreenHeight: 844
+              signalementDefaut:
+                summary: CREATE_BIKE_DEFECT (je déconseille ce vélo, § 6.4 ; lu dans l'APK, jamais exercé)
+                value:
+                  type: CREATE_BIKE_DEFECT
+                  parameters:
+                    bikeDefectTypeId: '<[Format : java.util.UUID]>00000000-0000-0000-0000-000000000000'
+                    bikeNumber: '<[Format : java.lang.Long]>20449'
+                    bikeDefectDomain: BIKE
+                    bikeDefectIsClosed: false
+                    bikeDefectComment: Frein arrière qui frotte
+                    bikeDefectUserType: CUSTOMER
+                    accountId: '<[Format : java.util.UUID]>00000000-0000-0000-0000-000000000000'
+                    bikeDefectDeclaredBlocked: true
+                    platform: MOBILE
+                    contract: lyon
       responses:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/ForbiddenIdentity' }
