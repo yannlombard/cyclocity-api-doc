@@ -974,6 +974,24 @@ curl -s "$A/bookings" -H "Authorization: Taknv1 $TAKN" -H "Identity: $IDENTITY"
 
 -> `200` profil complet mis à jour. Longueur max adresse : 38 caractères (feature `max.length.address`).
 
+**Compléter un compte neuf.** Un compte créé par Google ou Apple naît à `completion: 0.4`. L'app Android (`CompleteAccountActivity`, 3.3.10) fait compléter cinq champs par ce même `PATCH` :
+
+```json
+{
+  "sex": "M",
+  "firstName": "Jean",
+  "lastName": "Dupont",
+  "birthDate": "1984-09-12",
+  "phoneNumber": "+33600000000"
+}
+```
+
+- Ces cinq champs suffisent à porter `completion` à `1.0`, **sans adresse** (vérifié sur un compte de test le 2026-10-02). L'adresse se demande plus tard, dans le parcours d'abonnement.
+- `sex` vaut `M` ou `F` ; `O` n'est proposé que si la feature `gender.other.enabled` du contrat est vraie (absente à Lyon). Un compte neuf porte `UNKNOWN`.
+- `personalIdentifier` s'ajoute si le contrat porte `account.personal.identifier.type` (absente à Lyon).
+- Le téléphone est validé comme le fait libphonenumber, que l'app utilise côté client (`isValidNumberForRegion`) : un numéro d'une plage non attribuée — même la plage fictive mobile de l'ARCEP, 06 39 98 — rend `400 accounts.exception.validation.failed` (« Account invalid phone number »).
+- L'app officielle bloque elle-même un abonnement tant que `completion` n'est pas `1.0` (`AccountsException.NotCompleted`, levée côté client) ; qu'un achat soit refusé par l'API sans profil complet n'a pas été observé.
+
 **Alertes** : `[{ "value": "NO_VALID_SUBSCRIPTIONS", "key": "no.valid.subscriptions", "isBlockingStatus": true, "blockingStatus": true }]`. Valeurs connues (front) : `NO_VALID_SUBSCRIPTIONS`, `POST_PAYMENT_REJECTED`, `INVALID_CB`, `EXPIRING_CB`, `PROOF_WAITING`.
 
 **Éligibilité** : `[{ "offerId": 1101252, "eligible": true, "eligibilityDetails": "ELIGIBLE" }, { "offerId": 1101203, "eligible": false, "eligibilityDetails": "OFFER_AGE_INVALID" }]`. Valeurs : `ELIGIBLE`, `OFFER_AGE_INVALID`, `ALREADY_VALID_SUBSCRIPTION`, `BATTERY_SUBSCRIPTION_INELIGIBLE`.

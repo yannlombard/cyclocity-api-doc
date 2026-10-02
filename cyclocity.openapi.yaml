@@ -785,6 +785,12 @@ paths:
       tags: [Compte]
       operationId: patchAccount
       summary: Modifier le profil (corps partiel)
+      description: |
+        Sert aussi à compléter le profil d'un compte neuf (`CompleteAccountActivity` de l'app Android) :
+        `sex`, `firstName`, `lastName`, `birthDate`, `phoneNumber`, plus `personalIdentifier` si le contrat
+        porte la feature `account.personal.identifier.type` (absente à Lyon). Ces cinq champs suffisent à
+        porter `completion` à 1.0, sans adresse (vérifié sur un compte de test le 2026-10-02).
+        Le téléphone est validé comme le fait libphonenumber : un numéro d'une plage non attribuée est refusé.
       security: [{ Taknv1: [], Identity: [] }]
       x-status: observed
       requestBody:
@@ -794,6 +800,10 @@ paths:
             schema:
               type: object
               properties:
+                sex:
+                  type: string
+                  enum: [M, F, O]
+                  description: '`O` seulement si la feature `gender.other.enabled` du contrat est vraie (absente à Lyon).'
                 firstName: { type: string }
                 lastName: { type: string }
                 birthDate: { type: string, format: date }
@@ -806,7 +816,11 @@ paths:
                   properties:
                     name: { type: string, maxLength: 38 }
                     complement: { type: string }
+                personalIdentifier: { type: string }
       responses:
+        '400':
+          description: 'Valeur refusée, ex. `accounts.exception.validation.failed` (« Account invalid phone number »)'
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/ForbiddenIdentity' }
         '200':

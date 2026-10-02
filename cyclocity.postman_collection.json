@@ -737,6 +737,42 @@
           "id": "cyclocity-03-01"
         },
         {
+          "name": "✅ Compléter le profil (PATCH, compte neuf)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Taknv1 {{takn}}"
+              },
+              {
+                "key": "Identity",
+                "value": "{{identity}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.account.v4+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contracts/{{contract}}/accounts/{{accountId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["contracts", "{{contract}}", "accounts", "{{accountId}}"]
+            },
+            "description": "Les champs que l'app officielle fait compléter à un compte neuf (`CompleteAccountActivity`). Ils suffisent à porter `completion` à 1.0, sans adresse. `sex` vaut `M` ou `F`, `O` seulement si la feature `gender.other.enabled` du contrat est vraie. Un téléphone hors plage attribuée rend `400 accounts.exception.validation.failed`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sex\": \"M\",\n  \"firstName\": \"Jean\",\n  \"lastName\": \"Dupont\",\n  \"birthDate\": \"1984-09-12\",\n  \"phoneNumber\": \"+33600000000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "id": "cyclocity-03-01"
+        },
+        {
           "name": "✅ Alertes",
           "request": {
             "method": "GET",
