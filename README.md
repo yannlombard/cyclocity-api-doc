@@ -1915,6 +1915,8 @@ Accept: application/vnd.processes.v2+json
 }
 ```
 
+**Plusieurs tickets d'un coup** (lu dans l'APK Android 3.3.10, jamais exercé en capture) : l'écran d'offre propose un sélecteur de quantité pour une offre `ST` dont `nbTickets > 1` (de 1 à `nbTickets`, 5 pour « 1 trajet » et « 24 heures »). La quantité part dans le process en **nombre nu**, sans format typé : `"nbTickets": 3`, et l'app ne l'envoie que si l'abonné a touché au sélecteur. Le devis `packages` reste celui d'un ticket : l'app calcule elle-même le total, `finalPrice + (nbTickets - 1) × initialPrice` — une réduction ne vaut qu'une fois.
+
 -> `200 { "executionId": 519000000, "type": "SHORT_TERM_SUBSCRIPTION_V2", "inError": false, "toResume": false, ... }` (~3 s). Ensuite :
 
 - `GET /subscriptions?isLocked=0&periods=CURRENT&type=ST` renvoie le nouvel abonnement (`statuses: [BADGE_WAITING_ASSOCIATION]`, `platform: MOBILE`) ;

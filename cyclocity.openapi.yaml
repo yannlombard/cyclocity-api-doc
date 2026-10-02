@@ -1925,6 +1925,22 @@ paths:
                     browserColorDepth: 32
                     browserScreenWidth: 390
                     browserScreenHeight: 844
+              achatPlusieursTickets:
+                summary: SHORT_TERM_SUBSCRIPTION_V2 avec nbTickets (plusieurs tickets d'un coup, § 6.1 ; lu dans l'APK, jamais exercé)
+                value:
+                  type: SHORT_TERM_SUBSCRIPTION_V2
+                  parameters:
+                    platform: MOBILE
+                    badgeType: EXTERNAL
+                    badgeId: '<[Format:java.lang.Long]>22'
+                    offerId: '<[Format:java.lang.Long]>75171'
+                    startDate: '<[Format:java.util.Date]>1772562420000'
+                    cgauVersion: '003.002'
+                    nbTickets: 3
+                    supplements: []
+                    optionIds: []
+                    optInPartner: false
+                    optInSystem: false
               signalementDefaut:
                 summary: CREATE_BIKE_DEFECT (je déconseille ce vélo, § 6.4 ; lu dans l'APK, jamais exercé)
                 value:
@@ -2437,7 +2453,9 @@ components:
             expiredRenewalPeriod: { type: integer }
             manualOffers: { type: array, items: { type: integer } }
             autoOffers: { type: array, items: { type: integer } }
-        nbTickets: { type: integer }
+        nbTickets:
+          type: integer
+          description: Nombre maximal de tickets par achat (sélecteur de quantité de l'app, offres `ST`), envoyé ensuite comme `nbTickets` du process (§ 6.1).
         optionIds: { type: array, items: { type: integer } }
         relatedOffers: { type: array, items: { type: integer } }
         offersMigration: { type: array, items: { type: integer } }

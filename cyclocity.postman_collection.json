@@ -2277,7 +2277,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["contracts", "{{contract}}", "accounts", "{{accountId}}", "processes"]
             },
-            "description": "ACTION PAYANTE. `startDateMs` = timestamp ms de début souhaité ; `cgauVersion` = valeur de « CGU valides (VLS) ». Vérifier `inError: false` dans la réponse.",
+            "description": "ACTION PAYANTE. `startDateMs` = timestamp ms de début souhaité ; `cgauVersion` = valeur de « CGU valides (VLS) ». Vérifier `inError: false` dans la réponse. Plusieurs tickets d'un coup : ajouter `\"nbTickets\": 3` (nombre nu, de 2 au `nbTickets` de l'offre) aux paramètres ; le débit devient finalPrice + (n - 1) × initialPrice (lu dans l'APK 3.3.10, jamais exercé).",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"type\": \"SHORT_TERM_SUBSCRIPTION_V2\",\n  \"parameters\": {\n    \"platform\": \"MOBILE\",\n    \"badgeType\": \"EXTERNAL\",\n    \"badgeId\": \"<[Format:java.lang.Long]>22\",\n    \"offerId\": \"<[Format:java.lang.Long]>75171\",\n    \"startDate\": \"<[Format:java.util.Date]>{{startDateMs}}\",\n    \"cgauVersion\": \"003.002\",\n    \"supplements\": [],\n    \"optionIds\": [],\n    \"optInPartner\": false,\n    \"optInSystem\": false,\n    \"browserJavaEnabled\": true,\n    \"browserTimeZone\": -60,\n    \"browserColorDepth\": 32,\n    \"browserScreenWidth\": 390,\n    \"browserScreenHeight\": 844\n  }\n}",
