@@ -386,7 +386,7 @@
           "id": "cyclocity-01-10"
         },
         {
-          "name": "📱 Types de défauts (motifs de notation)",
+          "name": "✅ Types de défauts (motifs de notation)",
           "request": {
             "method": "GET",
             "header": [
@@ -420,7 +420,7 @@
                 }
               ]
             },
-            "description": "Motifs signalables : [{ id, rating, order, cdrCode, isElectricBike }]. Aucun libellé n'est rendu — l'app officielle n'affiche qu'une icône par code. Codes nommés dans son binaire : DT_DECLARED_312 éclairage, 313 roue ou pneu, 314 freins, 315 pédales, 316 guidon, 317 selle, 441 autre ; au moins un huitième (assistance électrique) existe. Le cdrCode retenu part dans le corps de « Noter le vélo » (6. Trajets). Sans l'Accept versionné : 415/406. Route lue dans l'app Android 3.3.10, non exercée en capture."
+            "description": "Motifs signalables : [{ id, code, label, rating, order, isElectricBike, … }]. Refusé au client token web (403 role.not.allowed, avec ou sans Identity, vérifié le 03/10/2026) : prendre le client token iOS ou Android. 8 motifs de premier niveau (code DT_DECLARED_399 autre, 317 selle, 316 guidon, 315 pédale, 314 frein, 313 roue, 312 feu, 441 assistance électrique) et 26 sous-motifs sans order (code ONE_STAR / TWO_STARS). Le code retenu part dans le corps de « Noter le vélo » (6. Trajets), sous le nom cdrCode. Sans l'Accept versionné : 415/406."
           },
           "id": "cyclocity-01-11"
         },

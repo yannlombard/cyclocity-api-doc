@@ -530,12 +530,13 @@ paths:
       operationId: listDefectTypes
       summary: 'Types de défauts signalables (exige `Accept: application/vnd.defect-type.v1+json`)'
       description: |
-        Alimente le motif d'une notation négative : c'est le `cdrCode` de l'entrée retenue qui part dans le
-        corps de `POST .../trips/{tripId}/rate`, et son `id` qui part dans le process `CREATE_BIKE_DEFECT`
-        (`bikeDefectTypeId`). `category=DECLARED_CUSTOMER` correspond à ce que déclare un client,
+        Alimente le motif d'une notation négative : c'est le `code` de l'entrée retenue qui part dans le
+        corps de `POST .../trips/{tripId}/rate` (`cdrCode`), et son `id` qui part dans le process
+        `CREATE_BIKE_DEFECT` (`bikeDefectTypeId`). **Refusé au client token web** (`403 role.not.allowed`,
+        avec ou sans `Identity`, vérifié le 03/10/2026) ; ceux des apps iOS et Android la lisent sans compte. `category=DECLARED_CUSTOMER` correspond à ce que déclare un client,
         `DECLARED_AGENT` à ce que saisit un agent. Pour un vélo qui n'est pas `ELECTRICAL`, l'app Android
         retire les entrées `isElectricBike: true` avant de les afficher.
-      x-status: decompiled
+      x-status: live
       parameters:
         - {
             name: domain,
@@ -550,6 +551,7 @@ paths:
         - { name: active, in: query, schema: { type: boolean } }
       responses:
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { description: '`role.not.allowed` : client token du site web' }
         '200':
           description: OK
           content:
@@ -2635,16 +2637,19 @@ components:
       description: 'Motif de défaut signalable, `Accept: application/vnd.defect-type.v1+json`.'
       properties:
         id: { type: string, format: uuid }
+        label: { type: string, description: 'Libellé serveur (« Frein »), que l''app officielle n''affiche pas' }
         rating: { type: integer }
-        order: { type: integer }
-        cdrCode:
+        order:
+          type: [integer, 'null']
+          description: Renseigné sur les 8 motifs de premier niveau, `null` sur les sous-motifs
+        code:
           type: string
           description: |
-            Code repris tel quel dans `BikeRate.cdrCode`. Aucun libellé n'accompagne l'entrée : l'app
-            officielle n'affiche qu'une icône par code. Sept sont nommés dans son binaire —
-            `DT_DECLARED_312` éclairage, `313` roue ou pneu, `314` freins, `315` pédales, `316` guidon,
-            `317` selle, `441` autre — et au moins un huitième existe (assistance électrique), pris par
-            la branche par défaut du mapping. Prévoir un repli pour un code inconnu.
+            Repris tel quel dans `BikeRate.cdrCode` (l'app Android le nomme `cdrCode`). Motifs de premier
+            niveau : `DT_DECLARED_399` autre, `317` selle, `316` guidon, `315` pédale, `314` frein,
+            `313` roue, `312` feu, `441` assistance électrique. Les sous-motifs (« Frein - Freine mal »…)
+            portent `ONE_STAR` ou `TWO_STARS`. L'app officielle montre une icône par code, `ic_defect_other`
+            pour tout code inconnu.
           examples: [DT_DECLARED_313]
         isElectricBike: { type: boolean, description: Motif réservé aux vélos électriques }
 
