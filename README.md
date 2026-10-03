@@ -589,7 +589,7 @@ Un `403` avec page HTML Tomcat signale un `Identity` manquant/invalide ; un `401
 ### 4.3 Formats
 
 - **Montants en centimes** (`180` = 1,80 €), devise du contrat (`EUR`).
-- **Dates** : ISO 8601 **sans fuseau**, en heure locale du contrat (`Europe/Paris`) : `"2026-03-02T09:32:14"`. Quelques champs sont en UTC explicite (`startTime` des process : `...+00:00`), et `startDate` des process est un timestamp **millisecondes**.
+- **Dates** : ISO 8601 **sans fuseau**, en **UTC** : `"2026-03-02T09:32:14"`. Le trajet du § 7.3, décroché à 10:32 heure de Paris (hiver, UTC+1), porte `09:32:14` ; l'app Android les lit par Jackson, dont le fuseau par défaut est UTC (📱). Un client JavaScript ne doit pas les passer telles quelles à `new Date()`, qui lit une date-heure sans fuseau en heure locale (ES § 21.4.3.2) : ajouter `Z`. Quelques champs sont en UTC explicite (`startTime` des process : `...+00:00`), et `startDate` des process est un timestamp **millisecondes**.
 - **Identifiants** : UUID (compte, abonnement, période, trajet, transaction), entiers (offres, badges, groupes d'offres, stations, vélos).
 - **Slash final** : `/accounts/{id}` et `/accounts/{id}/`, `/offers/{id}` et `/offers/{id}/` sont équivalents.
 - **Cache HTTP** : ressources publiques servies avec `ETag` -> `304 Not Modified` fréquents (`contracts/lyon`, `features`, `offerGroups`, `sponsoring`, `assets`).
@@ -2098,7 +2098,7 @@ sequenceDiagram
     App->>API: 10:32:08 POST /subscriptions/{subId}/trips { stationNumber 2002, bikeNumber 20449, standNumber 1, typeFrom SMARTPHONE }
     API-->>App: 200 { transactionState: OK }
     API->>Borne: ordre de libération (quelques secondes)
-    Borne-->>API: vélo décroché (startDateTime 09:32:14, heure du contrat)
+    Borne-->>API: vélo décroché (startDateTime 09:32:14, UTC)
     loop toutes les 5-10 s
         App->>API: GET /trips/ongoing
         API-->>App: 10:32:18 [ { status STARTED, startDateTime 09:32:14 } ]
@@ -2111,7 +2111,7 @@ sequenceDiagram
     API-->>App: [ { status FINISHED, duration 3, endStation 2001, price 0 } ]
 ```
 
-Timeline brute (heure locale de la capture ; les `startDateTime` de l'API sont en heure du contrat) :
+Timeline brute (heure de Paris pour la capture ; les `startDateTime` de l'API sont en UTC, une heure de moins en hiver) :
 
 ```text
 10:32:08  POST /subscriptions/{subId}/trips {stationNumber:2002, bikeNumber:20449, standNumber:1, typeFrom:"SMARTPHONE"} -> {transactionState:"OK"}
