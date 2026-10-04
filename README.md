@@ -1126,22 +1126,24 @@ Types d'offre (`type`) : `ST` (courte durée : ticket, pass), `LT` (longue duré
 
 **Badges / supports** (`GET /badges/{id}`) : un badge est le support physique ou virtuel qui porte l'abonnement :
 
-| `id`            | Nom                                     | `type`   | Commentaire                                                                     |
-| --------------- | --------------------------------------- | -------- | ------------------------------------------------------------------------------- |
-| 22              | Ticket                                  | EXTERNAL | Ticket dématérialisé (offres ST mobiles/web)                                    |
-| 42              | (Lyon City Card)                        | EXTERNAL | offre 170                                                                       |
-| 40              | Carte TCL                               | EXTERNAL | 45 min gratuites                                                                |
-| 41              | Carte OùRA!                             | EXTERNAL | 45 min gratuites                                                                |
-| 43              | Carte parking (LPA...)                  | EXTERNAL |                                                                                 |
-| 44              | Carte Vélo'v                            | OWNER    | Carte propre au service, envoyée à domicile (~7 j), `paymentMethods: [ADP, CB]` |
-| 94077           | Carte Citiz                             | EXTERNAL |                                                                                 |
-| 1009355         | Je ne souhaite pas de carte             | EXTERNAL | Accès app uniquement                                                            |
-| 20 / 21 / 76690 | Carte Vélo'v Express / bluely / trabool | EXTERNAL | historiques                                                                     |
-| 75130           | (ticket borne)                          | -        | offres `TERMINAL`                                                               |
-| 75860           | (support VLD/batterie)                  | -        | offres `UB`/`BATTERY`                                                           |
-| 454532 / 454543 | (Benur)                                 | -        | offres PMR                                                                      |
+| `id`            | Nom                                       | `type`   | Commentaire                                                                     |
+| --------------- | ----------------------------------------- | -------- | ------------------------------------------------------------------------------- |
+| 22              | Ticket                                    | EXTERNAL | Ticket dématérialisé (offres ST mobiles/web)                                    |
+| 42              | (Lyon City Card)                          | EXTERNAL | offre 170                                                                       |
+| 40              | Carte TCL                                 | EXTERNAL | 45 min gratuites au lieu de 30, abonnement annuel                               |
+| 41              | Carte OùRA!                               | EXTERNAL | 45 min gratuites au lieu de 30, abonnement annuel                               |
+| 43              | Carte parking (LPA, Q-Park, Vinci, Effia) | EXTERNAL | 45 min gratuites au lieu de 30, abonnement annuel                               |
+| 44              | Carte Vélo'v                              | OWNER    | Carte propre au service, envoyée à domicile (~7 j), `paymentMethods: [ADP, CB]` |
+| 94077           | Carte Citiz                               | EXTERNAL | 45 min gratuites au lieu de 30, abonnement annuel                               |
+| 1009355         | Je ne souhaite pas de carte               | EXTERNAL | Accès app uniquement                                                            |
+| 20 / 21 / 76690 | Carte Vélo'v Express / bluely / trabool   | EXTERNAL | historiques                                                                     |
+| 75130           | (ticket borne)                            | -        | offres `TERMINAL`                                                               |
+| 75860           | (support VLD/batterie)                    | -        | offres `UB`/`BATTERY`                                                           |
+| 454532 / 454543 | (Benur)                                   | -        | offres PMR                                                                      |
 
 Structure : `{ id, name, description, type: OWNER|EXTERNAL|TICKET|NO_BADGE, paymentMethods[], validityStart, amountReedit, isControlledPlugIn, badgeOrder, canBeOrdered, proofIds[] }`. `GET /badges/{id}/logo` -> `{ id, filename, mimeType, translations: { id, content: "<base64>" } }`.
+
+**Minutes gratuites des supports partenaires** : la `description` des badges 40, 41 et 94077 dit « Je bénéficie de 45 premières minutes offertes à chaque trajet au lieu de 30 si je suis abonné(e) à l'année », celle du badge 43 « Je bénéficie de 45 min gratuites au lieu de 30 min » (relu le 2026-10-05). Aucun champ chiffré ne le porte : le bonus se déduit du `badgeId` de l'abonnement (§ 5.5), pour un abonnement `LT`. Les fiches ne disent pas s'il s'étend au vélo électrique.
 
 ### 5.5 Abonnements
 
