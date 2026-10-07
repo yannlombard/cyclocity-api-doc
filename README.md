@@ -1584,7 +1584,7 @@ Le détail ajoute `sales[]` : `{ id, contractCode, accountId, accountEmail, subs
 | `PATCH` | `/accounts/{id}/rewards` `{"autoSpend": true\|false}` | C+I  | Utilisation automatique des points                              | ✅     |
 | `GET`   | `/accounts/{id}/rewards/history?page=0`               | C+I  | Historique des mouvements de points (page Spring, 200 par page) | ✅     |
 | `GET`   | `/rewards/configurations`                             | C    | Règles du programme                                             | ✅     |
-| `POST`  | `/accounts/{id}/rewards/consume/promocode`            | C+I  | Utiliser un code promo                                          | 🧩     |
+| `POST`  | `/accounts/{id}/rewards/consume/promocode`            | C+I  | Échanger des points contre un ticket « Inviter un ami »         | 📱 🧩  |
 
 **Exemples :**
 
@@ -1655,6 +1655,13 @@ curl -s "https://api.cyclocity.fr/contracts/lyon/rewards/configurations" -H "Aut
 | `BIKE_BOOKING`        | VALUATION | 10       | Coût d'une réservation        |
 
 Plafond de crédit : 500 (`rewards.credit.maximum.amount`).
+
+**Inviter un ami** (📱, APK 3.3.10, écran `reward/invite`, use case `sk/a` ; jamais exercé, l'appel débite les points). Contrairement à son nom, rien n'est envoyé à l'ami : la personne qui invite reçoit sur son propre compte un ticket 1 trajet, valable 24 h, qui lui permet de libérer un second vélo. Deux appels :
+
+1. `POST /accounts/{id}/rewards/consume/promocode`, sans corps, `Accept: application/vnd.rewards.v5+json` -> `{ "promoCode", "offerId", "badgeId", "badgeType", "rewardsSpent" }`. **Les points sont débités ici.** Le prix est le `reward` de `PROMOCODE` (50) ; l'app masque l'écran si l'entrée est désactivée, grise le bouton tant que le solde ne suffit pas (« Il vous manque %d points pour profiter du service. »). Refus reconnus : `rewards.exception.insufficient.rewards`, `rewards.exception.locked.account` (« Pour inviter un ami vous devez avoir un compte actif. »), `rewards.exception.no.valid.subscription` (« …un abonnement en cours de validité. »).
+2. Process `SHORT_TERM_SUBSCRIPTION_V2` (§ 6) sur le même compte, avec les valeurs reçues : `promocode`, `offerId` et `badgeId` typés `Long`, `badgeType`, `startDate` (maintenant), `platform: MOBILE` et les paramètres « navigateur ». Pas de `cgauVersion`. Le ticket est l'offre `579060` « Invitation ami » (§ 5.5).
+
+À ne pas confondre avec le **parrainage** de l'app (`account/sponsorship`, affiché si `Sponsorship.enable`) : il demande l'adresse du filleul et lance le process `CREATE_SPONSORSHIP_PROMOCODE`, sans points ; refus `lt.subscription.not.found` et `lt.subscription.found`.
 
 ### 5.9 Réservation d'un vélo (📱)
 

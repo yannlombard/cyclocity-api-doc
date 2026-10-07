@@ -1836,6 +1836,45 @@ paths:
           content:
             application/vnd.rewards.v5+json:
               schema: { $ref: '#/components/schemas/RewardHistoryPage' }
+  /contracts/{contract}/accounts/{accountId}/rewards/consume/promocode:
+    parameters:
+      - $ref: '#/components/parameters/contract'
+      - $ref: '#/components/parameters/accountId'
+    post:
+      tags: [Récompenses]
+      operationId: consumeRewardsPromoCode
+      summary: Échanger des points contre un ticket « Inviter un ami »
+      description: |
+        Lu dans le binaire Android 3.3.10 (`qi/j.b()`, écran `reward/invite`, use case `sk/a`), jamais
+        exercé : l'appel débite les points. `POST` sans corps, `Accept: application/vnd.rewards.v5+json`.
+        Le prix est le `reward` de l'entrée `PROMOCODE` de `GET /rewards/configurations` (50) ; l'app
+        masque l'écran si cette entrée est désactivée et grise le bouton quand le solde ne suffit pas.
+
+        La réponse ne crée pas le ticket : l'app enchaîne un process `SHORT_TERM_SUBSCRIPTION_V2`
+        (`startProcess`) **sur le compte même**, avec `promocode`, `offerId` et `badgeId` typés `Long`,
+        `badgeType`, `startDate` (maintenant), `platform: MOBILE` et les paramètres « navigateur ». Le
+        ticket obtenu est l'offre 579060 « Invitation ami » : 1 trajet, valable 24 h, pour libérer un
+        second vélo. README § 5.8.
+
+        Refus reconnus par l'app : `rewards.exception.insufficient.rewards`,
+        `rewards.exception.locked.account`, `rewards.exception.no.valid.subscription`.
+      security: [{ Taknv1: [], Identity: [] }]
+      x-status: decompiled
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/ForbiddenIdentity' }
+        '200':
+          description: Le code promo, à souscrire par process
+          content:
+            application/vnd.rewards.v5+json:
+              schema:
+                type: object
+                properties:
+                  promoCode: { type: string }
+                  offerId: { type: integer, format: int64, example: 579060 }
+                  badgeId: { type: integer, format: int64 }
+                  badgeType: { type: string, enum: [EXTERNAL, OWNER, TICKET, NO_BADGE] }
+                  rewardsSpent: { type: integer, example: 50 }
   /contracts/{contract}/rewards/configurations:
     parameters: [{ $ref: '#/components/parameters/contract' }]
     get:
@@ -1899,6 +1938,9 @@ paths:
         `CREATE_BIKE_DEFECT` signale un défaut de vélo (§ 6.4) : sans `returns` ni identifiant de trajet ;
         `bikeDefectTypeId` est l'`id` d'un type de `GET .../defect-types`, `bikeDefectDeclaredBlocked` demande
         que le vélo ne soit plus proposé. Lu dans le binaire Android 3.3.10, jamais exercé.
+        Un `SHORT_TERM_SUBSCRIPTION_V2` peut aussi souscrire le code de
+        `POST .../rewards/consume/promocode` (`promocode`, `offerId`, `badgeId`, `badgeType`, `startDate`),
+        sans `cgauVersion` : le ticket « Inviter un ami » (📱, jamais exercé).
       security: [{ Taknv1: [], Identity: [] }]
       x-status: observed
       parameters:

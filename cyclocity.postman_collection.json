@@ -2278,6 +2278,41 @@
             "description": "Page Spring (200 par page) : content[] avec nature RULE_ACHIEVED|CONSUMPTION, direction CREDIT|DEBIT, amount, reason (RATE_BIKE, REDUCTION...), reference/referenceType TRIP, readStatus (§ 5.8)."
           },
           "id": "cyclocity-07-10"
+        },
+        {
+          "name": "📱 ⚠️ Inviter un ami (débite 50 points)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Taknv1 {{takn}}"
+              },
+              {
+                "key": "Identity",
+                "value": "{{identity}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/vnd.rewards.v5+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contracts/{{contract}}/accounts/{{accountId}}/rewards/consume/promocode",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "contracts",
+                "{{contract}}",
+                "accounts",
+                "{{accountId}}",
+                "rewards",
+                "consume",
+                "promocode"
+              ]
+            },
+            "description": "ACTION RÉELLE : débite les points du reward PROMOCODE de « Règles du programme fidélité » (50). Lu dans le binaire Android 3.3.10 (qi/j.b(), écran reward/invite), jamais exercé (📱). POST sans corps. Réponse { promoCode, offerId, badgeId, badgeType, rewardsSpent } : le ticket n'existe pas encore, l'app enchaîne un process SHORT_TERM_SUBSCRIPTION_V2 sur le même compte avec promocode, offerId et badgeId typés Long, badgeType, startDate, platform MOBILE et les paramètres navigateur. Le ticket obtenu (offre 579060 « Invitation ami ») vaut 1 trajet, 24 h, pour libérer un second vélo. Refus : rewards.exception.insufficient.rewards, rewards.exception.locked.account, rewards.exception.no.valid.subscription. Voir § 5.8."
+          },
+          "id": "cyclocity-07-11"
         }
       ],
       "id": "cyclocity-07"
