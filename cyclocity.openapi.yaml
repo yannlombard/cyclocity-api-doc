@@ -1010,7 +1010,8 @@ paths:
       description: |
         Capturé sur l'app iOS avec `Accept: */*`, toujours vide. L'app Android croise la liste avec
         `GET /bikes` par `bikeId` : un vélo `RESERVED` absent de la liste est réservé par un autre
-        usager, et l'app refuse de le libérer. README § 5.9.
+        usager, et l'app refuse de le libérer. En station, un vélo réservé reste pourtant `AVAILABLE`
+        avec `isReserved: true` (`bikes.v4`) : c'est ce champ qu'il faut croiser. README § 5.9.
       security: [{ Taknv1: [], Identity: [] }]
       x-status: observed
       responses:
@@ -1048,6 +1049,13 @@ paths:
           content:
             application/booking+json:
               schema: { $ref: '#/components/schemas/Booking' }
+        '400':
+          description: >-
+            Vélo déjà réservé par un autre usager (observé le 06/10/2026) :
+            `booking.exception.bike.already.reserved`, « The requested bike is already reserved ».
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
 
   # ---------------------------------------------------------------- Offres et badges
   /contracts/{contract}/offers:
@@ -1430,6 +1438,8 @@ paths:
             `kiwi.exception.customer.insuffisant.right` (abonnement hors validité),
             `kiwi.exception.customer.paymentmode.not.valid` (moyen de paiement à mettre à jour),
             `kiwi.exception.no.release.bike` (problème technique), `trips.exception.invalid.customer.credit`.
+            Observé hors de cette liste : `404 trips.exception.bookings.already.reserved` (« Bike reserved
+            by another user »), vélo `AVAILABLE` à `isReserved: true` réservé par un autre usager (06/10/2026).
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
@@ -2406,7 +2416,7 @@ components:
         updatedAt: { type: string }
         isReserved:
           type: boolean
-          description: Ne recoupe pas le statut `RESERVED` (880 vélos `true` le 23/09/2026, surtout `RENTED` et `AVAILABLE`, pour un seul `RESERVED`) ; sens non établi, lu par aucun client. `bikes.v4` seulement
+          description: Le vélo est réservé. En station, une réservation laisse `status` à `AVAILABLE` et lève ce champ ; `RESERVED` ne s'y voit pas (mesuré le 07/10/2026, README § 5.2). Un client tient pour réservé un vélo `RESERVED` ou `isReserved`. Peut rester `true` quelque temps sur un vélo `RENTED`. `bikes.v4` seulement, lu par aucun client officiel
         energySource:
           type: integer
           description: '`0` mécanique, `1` ou `2` électrique ; absent sur les vélos à batterie `REMOVABLE` (e-Vélo''v à batterie amovible). `bikes.v4` seulement, lu par aucun client'
