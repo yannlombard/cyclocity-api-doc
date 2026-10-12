@@ -1053,6 +1053,8 @@ paths:
           description: >-
             Vélo déjà réservé par un autre usager (observé le 06/10/2026) :
             `booking.exception.bike.already.reserved`, « The requested bike is already reserved ».
+            Réservation déjà en cours sur le compte (observé le 12/10/2026, une seule
+            réservation à la fois) : `bookings.exception.not.authorized`, « The booking is not authorized ».
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
