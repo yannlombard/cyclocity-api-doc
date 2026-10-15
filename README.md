@@ -1231,14 +1231,14 @@ Patterns de l'app : écran station -> `?isLocked=0&periods=CURRENT&type=ST` **et
 
 ### 5.6 Trajets et statistiques
 
-| Méth.  | Endpoint                                      | Auth | Description                                                                                                   | Statut  |
-| ------ | --------------------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------- | ------- |
-| `POST` | `/accounts/{id}/subscriptions/{subId}/trips`  | C+I  | **Déverrouiller un vélo**                                                                                     | ✅      |
-| `GET`  | `/accounts/{id}/trips/ongoing`                | C+I  | Trajet en cours (`[]` sinon)                                                                                  | ✅      |
-| `GET`  | `/accounts/{id}/trips[?status=...]`           | C+I  | Historique (les plus récents en premier) ; l'app 3.6.1 filtre `?status=FINISHED&status=ERROR&status=REVERSED` | ✅ live |
-| `GET`  | `/accounts/{id}/subscriptions/{kiwiId}/trips` | C+I  | Trajets d'un abonnement                                                                                       | 📚      |
-| `POST` | `/accounts/{id}/trips/{tripId}/rate`          | C+I  | Noter le vélo (5 points de fidélité)                                                                          | 📱      |
-| `GET`  | `/accounts/{id}/stats?...`                    | C+I  | Statistiques agrégées                                                                                         | ✅      |
+| Méth.  | Endpoint                                      | Auth | Description                                                                                                                                                                              | Statut  |
+| ------ | --------------------------------------------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `POST` | `/accounts/{id}/subscriptions/{subId}/trips`  | C+I  | **Déverrouiller un vélo**                                                                                                                                                                | ✅      |
+| `GET`  | `/accounts/{id}/trips/ongoing`                | C+I  | Trajet en cours (`[]` sinon)                                                                                                                                                             | ✅      |
+| `GET`  | `/accounts/{id}/trips[?status=...]`           | C+I  | Historique (les plus récents en premier) ; l'app 3.6.1 filtre `?status=FINISHED&status=ERROR&status=REVERSED`. Un trajet passé peut y perdre ses stations, puis disparaître (ci-dessous) | ✅ live |
+| `GET`  | `/accounts/{id}/subscriptions/{kiwiId}/trips` | C+I  | Trajets d'un abonnement ; `200 []` en direct pour un ticket « 1 trajet » échu (15/10/2026), liste non vide jamais vue                                                                    | 📚      |
+| `POST` | `/accounts/{id}/trips/{tripId}/rate`          | C+I  | Noter le vélo (5 points de fidélité)                                                                                                                                                     | 📱      |
+| `GET`  | `/accounts/{id}/stats?...`                    | C+I  | Statistiques agrégées                                                                                                                                                                    | ✅      |
 
 **Exemples :**
 
@@ -1365,7 +1365,15 @@ Après le `200`, la borne libère le vélo quelques secondes ; si le vélo n'est
 
 `duration` en **minutes arrondies au supérieur** ; `bikeType` `0` = mécanique, `1` = électrique ; `price`/`discount` en centimes ; `token` = code du trajet ; `origin: 4` = smartphone (valeur constante observée) ; `isRated` pilote l'invitation à noter le vélo (règle rewards `RATE_BIKE`). Statuts de trajet connus (VLSKit) : `REQUESTED, STARTED, FINISHED, REJECTED, TIMEOUT, PAUSED, AUTO_FINISHED, ERROR, WARNING, REVERSED` (`GET /trips?status=` filtre) ; champs supplémentaires possibles : `startStationName`, `endStationName`, `elecTripsNb`, `overchargeMaxTrips`, `overchargeAmount`. `transactionState` du déverrouillage : `NOT_CONNECTED, UNKNOW, UNSTARTED, RUNNING, OK, NOK, ABORT, TIME_OUT` ; `typeFrom` : `UNKNOWN, STATION_WITH_CREDENTIALS, STATION_WITH_BADGE, WEB, SYSTEM, SMARTPHONE, CARD`.
 
-**Version `v6` du media-type** : depuis l'app 3.6.1 (sept. 2026), `GET /trips` et `GET /trips/ongoing` sont demandés avec `Accept: application/vnd.trip.v6+json`, et le serveur répond dans ce type. La session 13 n'a capturé que des listes vides (`[]`) : les différences de shape avec le `v5` décrit ici ne sont pas connues. Vérifié live le 15/09/2026 sur un compte sans trajet : les deux `Accept` répondent `200` avec le type demandé en écho. Le filtre `status` est répétable : l'app liste l'historique avec `?status=FINISHED&status=ERROR&status=REVERSED`. Les trajets facturés se relisent aussi, avec leur détail (noms de stations, surcoût électrique), dans `GET /sales?infoType=TRIP` (§ 5.7).
+**Version `v6` du media-type** : depuis l'app 3.6.1 (sept. 2026), `GET /trips` et `GET /trips/ongoing` sont demandés avec `Accept: application/vnd.trip.v6+json`, et le serveur répond dans ce type. La session 13 n'a capturé que des listes vides (`[]`). Vérifié live le 15/09/2026 sur un compte sans trajet : les deux `Accept` répondent `200` avec le type demandé en écho. Le 15/10/2026, sur un compte qui avait des trajets, `GET /trips` a rendu la même réponse, au champ près, en `v5` et en `v6` : aucune différence de shape n'est connue à ce jour. Le filtre `status` est répétable : l'app liste l'historique avec `?status=FINISHED&status=ERROR&status=REVERSED`. Les trajets facturés se relisent aussi, avec leur détail (noms de stations, surcoût électrique), dans `GET /sales?infoType=TRIP` (§ 5.7), et y restent quand `GET /trips` les a dépouillés ou perdus (ci-dessous).
+
+**L'historique de `GET /trips` se dégrade bien avant les seuils de la configuration.** Le contrat annonce une anonymisation à 180 jours et une purge à 780 (`anonymization.threshold` et `purge.all.trips.threshold`, § 9). Un relevé live du 15/10/2026, sur un compte abonné aux seuls tickets « 1 trajet », montre les deux étapes bien plus tôt :
+
+- **Un trajet de 12 jours sortait sans lieu ni vélo.** Ce trajet `FINISHED` n'avait plus que 22 champs, contre 28 dans l'exemple ci-dessus : manquaient `movementRef`, `bikeNumber`, `startStation`, `startStand`, `endStation` et `endStand`. Restaient `accountId`, `bikeType`, `contractName`, `createdAt`, `discount`, `duration`, `endDateTime`, `id`, `isRated`, `isSpecial`, `litigious`, `origin`, `price`, `reducedPrice`, `rewardsEarned`, `rewardsSpent`, `startDateTime`, `status`, `subscriptionId`, `subscriptionRef`, `token` et `updatedAt`. La réponse est la même en `Accept: application/vnd.trip.v5+json` et en `v6` : ce n'est pas une affaire de version. Le seuil de 180 jours ne l'explique pas ; hypothèse non vérifiée, le trajet est anonymisé à l'échéance de l'abonnement court (`ST`) qui l'a porté. Les clients officiels affichent alors un trajet sans stations.
+- **Des trajets d'environ 13 mois ne sortaient plus du tout**, bien en deçà des 780 jours de la purge : ni par `GET /trips` filtré sur `status`, ni sans filtre, ni en `v6`, ni avec `?page=0&size=200`, ni par `GET /subscriptions/{subId}/trips`, qui répond `200 []` pour un ticket échu qui en avait porté un.
+- **`GET /sales?infoType=TRIP&natures=CONSUMPTION` gardait ces mêmes trajets en entier** (§ 5.7) : stations, noms de station, bornes, vélo et heures, y compris pour ceux que `GET /trips` avait dépouillés ou ne rendait plus. Mais seul un trajet payant, avec consommation, a une vente : un trajet compris dans la formule n'en a pas, et il n'est plus retrouvable nulle part une fois sorti de `GET /trips`.
+
+Un client qui veut un historique complet doit donc traiter `bikeNumber`, `movementRef`, les stations et les bornes comme optionnels, garder lui-même ce que `GET /trips` lui rend tant qu'il le rend, et compléter les trajets payants par `GET /sales`. Les liens qui rattachent un trajet anonymisé à sa vente, à son prélèvement, à son ticket et à ses points sont au § 5.7.
 
 **Noter le vélo** : l'invitation n'est **pas** un push. Aucun des types de notification de l'app (`RIDE_START`, `RIDE_END`, `LONG_TRIP`, `FORGOTTEN_BATTERY`, `STATION_EVENT`) ne la déclenche ; c'est le champ `isRated: false` du dernier trajet, relu au retour dans l'app, qui l'affiche. La notation crédite **5 points** de fidélité (règle `RATE_BIKE`, § 5.8) et n'est possible qu'une fois par trajet.
 
@@ -1413,7 +1421,7 @@ Et pour 99,3 % des vélos notés, `lastRatingDateTime` est postérieur à `lastC
 
 Un échec du process n'envoie donc aucune note. « Je recommande » ne fait que l'appel `/rate`, `cdrCode: null`. L'app laisse **3 heures** après la fin du trajet pour noter (`ratingExpirationMessage` : « vous disposez d'un délai de 3 heures pour évaluer votre vélo »).
 
-Route non exercée en capture : les 13 sessions ne contiennent aucun appel à `/rate` ni aucun trajet avec `isRated: true`. Méthode, chemin, media-type et forme du corps sont lus dans les interfaces Retrofit de l'app Android 3.3.10 (statut 📱).
+Route non exercée en capture : les 13 sessions ne contiennent aucun appel à `/rate` ni aucun trajet avec `isRated: true`. Méthode, chemin, media-type et forme du corps sont lus dans les interfaces Retrofit de l'app Android 3.3.10 (statut 📱). Le relevé live du 15/10/2026 montre en revanche des trajets `isRated: true` et le crédit de points qui suit leur notation (§ 5.8).
 
 **Statistiques** : `GET /accounts/{id}/stats` (`Accept: application/vnd.stats.v1+json`) :
 
@@ -1483,7 +1491,7 @@ curl -s -X POST "$A/pay/checkout" -H "Authorization: Taknv1 $TAKN" -H "Identity:
 ```
 
 Le détail ajoute `sales[]` : `{ id, contractCode, accountId, accountEmail, subscriptionId, externalRef, nature, date, createdAt, updatedAt, amount, direction: DEBIT|CREDIT, status, transactionId, subscriptionType, pankey, accountType, paybackAmount }`.
-`nature` (transaction et vente) : `SUBSCRIPTION` (achat), `RENEWAL` (renouvellement), `CONSUMPTION` (dépassement de temps), `CONSUMPTION_REDUCTION` (remise, `direction: CREDIT`, ex. points fidélité). Exemple observé : dépassement 100 c - remise 2 c -> transaction de 98 c.
+`nature` (transaction et vente) : `SUBSCRIPTION` (achat), `RENEWAL` (renouvellement), `CONSUMPTION` (dépassement de temps), `CONSUMPTION_REDUCTION` (remise, `direction: CREDIT`, ex. points fidélité). Une transaction `CONSUMPTION` peut porter les deux lignes dans `sales[]` ; exemple observé : dépassement 100 c - remise par points 2 c -> transaction de 98 c prélevés.
 
 **Ventes** (`GET /accounts/{id}/sales`, observé avec l'app 3.6.1) : une ligne par vente, la même shape que `sales[]` du détail de transaction, **plus** `saleAdditionnalInfo` et `platform`. L'app envoie `Content-Type: application/vnd.sale.v1+json` avec `Accept: */*` ; la réponse est en `application/vnd.sale.v1+json`. Le même media-type en `Accept` fonctionne aussi (vérifié live le 15/09/2026). Paramètres (tous optionnels) :
 
@@ -1495,7 +1503,7 @@ Le détail ajoute `sales[]` : `{ id, contractCode, accountId, accountEmail, subs
 | `direction`     | `DEBIT` (ou `CREDIT`)                                                                                       |
 | `saleDateAfter` | ISO 8601 local sans zone (`2026-03-15T16:21:45`) ; l'app demande les six derniers mois                      |
 
-**Les trois requêtes de l'app sont les trois écrans de son menu « Besoin d'aide »** (§ 7.4), et non l'historique des trajets, qui se lit par `GET /trips` :
+**Les trois requêtes de l'app sont les trois écrans de son menu « Besoin d'aide »** (§ 7.4), et non l'historique des trajets, qui se lit par `GET /trips` (§ 5.6 ; `/sales` garde pourtant les trajets payants que `/trips` dépouille ou perd, ci-dessous) :
 
 | Requête                                                                                                           | Écran                                         | Ce qu'elle liste                                                                         |
 | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------- |
@@ -1564,6 +1572,18 @@ Le détail ajoute `sales[]` : `{ id, contractCode, accountId, accountEmail, subs
 ```
 
 `saleAdditionnalInfo.type` vaut `TRIP` (`id` = `movementRef` du trajet, `additionalInfos` = le trajet, avec `startStationName`, `endStationName`, `elecTripsNb`, `overchargeAmount` et `overchargeMaxTrips` que `GET /trips` ne renvoie pas) ou `PERIOD` (`additionalInfos: { "periodId": "..." }`, la vente portant alors `platform: "MOBILE"`). Ici un trajet à Vélo'v électrique sur un ticket 1 trajet : 1 € dès la première minute (`overchargeAmount: 100`).
+
+**`/sales` garde les trajets que `/trips` a perdus.** Relevé le 15/10/2026 : `?infoType=TRIP&natures=CONSUMPTION` rendait en entier, avec les 31 champs de l'exemple ci-dessus, des trajets que `GET /trips` avait dépouillés de leurs stations, de leurs bornes et de leur vélo, ou ne rendait plus du tout (§ 5.6). Seuls les trajets payants ont une vente : un trajet compris dans la formule, sans consommation, n'y figure pas.
+
+**Rattacher un trajet à ses mouvements.** Le `movementRef` que porte `saleAdditionnalInfo.id` disparaît du trajet anonymisé ; ces liens-là survivent :
+
+| Depuis                | Vers                                     | Par                                                                                                                                                                                                       |
+| --------------------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| trajet (`GET /trips`) | sa vente `TRIP`                          | `id` du trajet = `saleAdditionnalInfo.additionalInfos.id`                                                                                                                                                 |
+| vente                 | prélèvement (`GET /transactions`)        | `transactionId` de la vente ; le prélèvement suit en général de quelques jours                                                                                                                            |
+| trajet                | achat de son ticket                      | `subscriptionId` du trajet = `subscriptionId` de la vente `SUBSCRIPTION`. `?infoType=PERIOD&natures=SUBSCRIPTION` rend bien les achats de tickets « 1 trajet », avec `saleAdditionnalInfo.type: "PERIOD"` |
+| trajet                | débit de points (`GET /rewards/history`) | `reference` du mouvement `CONSUMPTION` / `REDUCTION` = `id` du trajet (§ 5.8) ; la remise correspondante est la ligne `CONSUMPTION_REDUCTION` de la transaction (ci-dessus)                               |
+| trajet                | crédit `RATE_BIKE` de sa notation        | aucun champ : un rapprochement par l'heure seulement (§ 5.8)                                                                                                                                              |
 
 **Checkout** (`Content-Type/Accept: application/vnd.pay.v1+json`) :
 
@@ -1641,6 +1661,8 @@ curl -s "https://api.cyclocity.fr/contracts/lyon/rewards/configurations" -H "Aut
 ```
 
 `nature` : `RULE_ACHIEVED` (crédit d'une règle, `reason` = son `name` : `RATE_BIKE`...) ou `CONSUMPTION` (débit, `reason: "REDUCTION"`, `reference` = id du trajet et `referenceType: "TRIP"`) ; la `reference` d'un crédit est la chaîne `"null"`. L'app 3.6.1 appelle `GET /accounts/{id}/rewards/` **avec un slash final** ; les deux formes répondent.
+
+**Rattacher le crédit de notation à son trajet** se fait par l'heure, faute de `reference`. Dans les trois cas relevés le 15/10/2026, le crédit `RATE_BIKE` (+5) est arrivé 1 à 2 minutes après la fin du trajet noté ; la notation restant ouverte 3 heures (§ 5.6), le bon candidat est le trajet `isRated: true` terminé dans les 3 heures qui précèdent le crédit. Ce crédit **n'entre pas** dans le `rewardsEarned` du trajet : additionner ce champ ne donne pas tous les points gagnés. Le débit, lui, se rattache par sa `reference` (§ 5.7, « Rattacher un trajet à ses mouvements »).
 
 `GET /rewards/configurations` -> `[{ "id", "contractName", "name", "type": "RULE"|"VALUATION", "i18nKey", "enable", "reward" }]` :
 
@@ -2342,7 +2364,7 @@ Apple (16:20:41 -> 16:20:55) suit le même chemin, avec `POST .../broker/lyon-ap
 | `suspiciousDurationThreshold`                                   | `120`                                                            | Trajet suspect (min)                                             |
 | `trips.notifycautionoverlylongtrip`                             | `24`                                                             | Alerte trajet > 24 h                                             |
 | `st.close.delay`                                                | `15`                                                             | Jours avant `CLOSED` d'un ST expiré                              |
-| `anonymization.threshold` / `purge.all.trips.threshold`         | `180` / `780`                                                    | Anonymisation / purge des trajets (j)                            |
+| `anonymization.threshold` / `purge.all.trips.threshold`         | `180` / `780`                                                    | Anonymisation / purge des trajets (j), vues plus tôt (§ 5.6)     |
 | `rewards.activated` / `rewards.credit.maximum.amount`           | `true` / `500`                                                   | Fidélité                                                         |
 | `qrcode.scan.enabled`                                           | `true`                                                           | Scan QR en station                                               |
 | `bike.electrical.enabled` / `bike.mechanical.enabled`           | `true`                                                           |                                                                  |
@@ -2497,7 +2519,7 @@ Techniquement, `POST /accounts/{id}/subscriptions/{subId}/trips` (§ 5.6) est ce
 
 **Comment savoir si une information de ce document est encore vraie ?**
 
-Chaque endpoint porte un statut (légende § 5) ; les lignes ✅ live ont été rejouées le 18/08/2026, puis le 15/09/2026 pour `sales`, `rewards/history` et les trajets en `v5`/`v6`. Les captures datent de février-mars 2026 (app 3.3.1) et du 15 septembre 2026 (app 3.6.1). En cas de doute, rejouez la commande `curl` correspondante : c'est le meilleur test.
+Chaque endpoint porte un statut (légende § 5) ; les lignes ✅ live ont été rejouées le 18/08/2026, puis le 15/09/2026 pour `sales`, `rewards/history` et les trajets en `v5`/`v6`, et le 15/10/2026 pour l'anonymisation de l'historique des trajets (§ 5.6) et ce que `sales` en garde (§ 5.7). Les captures datent de février-mars 2026 (app 3.3.1) et du 15 septembre 2026 (app 3.6.1). En cas de doute, rejouez la commande `curl` correspondante : c'est le meilleur test.
 
 **Y a-t-il une spec OpenAPI ou une collection Postman ?**
 

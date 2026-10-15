@@ -1819,7 +1819,7 @@
                 }
               ]
             },
-            "description": "Ce que fait l'app 3.6.1 (sept. 2026). Seules des listes vides ont été observées en v6 : la shape est supposée identique au v5 de « Historique des trajets » (§ 5.6)."
+            "description": "Ce que fait l'app 3.6.1 (sept. 2026). Le 15/10/2026, la même liste de trajets est sortie identique en v6 et en v5 (« Historique des trajets »). Un trajet passé peut y perdre ses stations, ses bornes et son vélo, puis disparaître, bien avant les seuils de la configuration ; les trajets payants restent entiers dans « Aide : justificatif de paiement » (§ 5.6)."
           },
           "id": "cyclocity-06-05"
         }

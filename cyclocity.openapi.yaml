@@ -1474,7 +1474,7 @@ paths:
       tags: [Trajets et statistiques]
       operationId: listTrips
       summary: Historique des trajets (les plus récents en premier)
-      description: "L'app 3.6.1 (sept. 2026) filtre `?status=FINISHED&status=ERROR&status=REVERSED` et demande `application/vnd.trip.v6+json` ; seules des listes vides ont été observées dans ce type, la shape est supposée identique au v5. Les deux `Accept` et le filtre répondent `200` (vérifié live le 15/09/2026). Les trajets facturés se relisent aussi dans `GET .../sales?infoType=TRIP`."
+      description: "L'app 3.6.1 (sept. 2026) filtre `?status=FINISHED&status=ERROR&status=REVERSED` et demande `application/vnd.trip.v6+json`. Les deux `Accept` et le filtre répondent `200` (vérifié live le 15/09/2026) ; le 15/10/2026, la même liste de trajets est sortie identique en v5 et en v6. **L'historique se dégrade bien avant `anonymization.threshold` (180 j) et `purge.all.trips.threshold` (780 j)** (relevé live du 15/10/2026, tickets « 1 trajet ») : un trajet `FINISHED` de 12 jours sortait sans `movementRef`, `bikeNumber`, `startStation`, `startStand`, `endStation` ni `endStand` (22 champs, quel que soit l'`Accept` ; hypothèse non vérifiée : anonymisation à l'échéance du ticket `ST`), et des trajets d'environ 13 mois ne sortaient plus du tout, avec ou sans filtre, en v6, ni avec `?page=0&size=200`. `GET .../sales?infoType=TRIP` garde en entier les trajets payants, y compris ceux-là ; un trajet sans vente n'est plus retrouvable."
       security: [{ Taknv1: [], Identity: [] }]
       x-status: live
       parameters:
@@ -1714,7 +1714,7 @@ paths:
       tags: [Paiement]
       operationId: listSales
       summary: Lignes de vente, avec le trajet facturé si `infoType=TRIP`
-      description: "L'app 3.6.1 envoie `Content-Type: application/vnd.sale.v1+json` avec `Accept: */*` ; la réponse est en `application/vnd.sale.v1+json` (le même type en `Accept` fonctionne aussi, vérifié live le 15/09/2026). Les trois requêtes observées sont les trois écrans de son menu « Besoin d'aide » (session 13), pas l'historique des trajets, qui se lit par `GET /trips` : `?direction=DEBIT&infoType=TRIP&natures=CONSUMPTION&status=PAID` = « j'ai besoin d'un justificatif de paiement » ; `?infoType=TRIP&natures=CONSUMPTION&saleDateAfter={now - 6 mois}&status=PAID&status=TO_INVOICE&status=TO_CONTROL` = « je ne suis pas d'accord avec le montant », d'où la fenêtre de six mois et les trois `status` ; `?infoType=PERIOD&natures=SUBSCRIPTION&status=PAID` = « justificatif d'abonnement », dont les `periodId` alimentent `GET /periods`."
+      description: "L'app 3.6.1 envoie `Content-Type: application/vnd.sale.v1+json` avec `Accept: */*` ; la réponse est en `application/vnd.sale.v1+json` (le même type en `Accept` fonctionne aussi, vérifié live le 15/09/2026). Les trois requêtes observées sont les trois écrans de son menu « Besoin d'aide » (session 13), pas l'historique des trajets, qui se lit par `GET /trips` : `?direction=DEBIT&infoType=TRIP&natures=CONSUMPTION&status=PAID` = « j'ai besoin d'un justificatif de paiement » ; `?infoType=TRIP&natures=CONSUMPTION&saleDateAfter={now - 6 mois}&status=PAID&status=TO_INVOICE&status=TO_CONTROL` = « je ne suis pas d'accord avec le montant », d'où la fenêtre de six mois et les trois `status` ; `?infoType=PERIOD&natures=SUBSCRIPTION&status=PAID` = « justificatif d'abonnement », dont les `periodId` alimentent `GET /periods`. Relevé live du 15/10/2026 : avec `infoType=TRIP&natures=CONSUMPTION`, la vente garde le trajet en entier (31 champs, stations et vélo compris), y compris quand `GET /trips` l'a anonymisé ou ne le rend plus ; seuls les trajets payants ont une vente. `saleAdditionnalInfo.additionalInfos.id` = `id` du trajet ; `subscriptionId` d'un trajet = celui de la vente `SUBSCRIPTION` d'achat du ticket (`infoType=PERIOD`, qui rend aussi les tickets « 1 trajet »)."
       security: [{ Taknv1: [], Identity: [] }]
       x-status: live
       parameters:
@@ -2620,7 +2620,7 @@ components:
 
     Trip:
       type: object
-      description: '`Accept: application/vnd.trip.v5+json` (l''app 3.6.1 demande `v6`, shape non observée) : `duration` en minutes arrondies au supérieur ; `bikeType` 0 = mécanique, 1 = électrique ; `origin` 4 = smartphone'
+      description: '`Accept: application/vnd.trip.v5+json` (l''app 3.6.1 demande `v6`, même réponse sur les trajets comparés le 15/10/2026). Un trajet passé peut sortir anonymisé, sans `movementRef`, `bikeNumber`, `startStation`, `startStand`, `endStation` ni `endStand` (vu dès 12 jours) : `duration` en minutes arrondies au supérieur ; `bikeType` 0 = mécanique, 1 = électrique ; `origin` 4 = smartphone'
       properties:
         id: { type: string, format: uuid }
         movementRef: { type: string }
