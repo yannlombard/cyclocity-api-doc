@@ -614,9 +614,9 @@ paths:
       operationId: listStations
       summary: Toutes les stations
       description: |
-        Sans `Accept` versionné -> shape legacy `[{ label, open, connected, code, country, agency, district,
-        nbBikeBases, nbBikes, bonus }]` (inclut des stations de test). Avec `vnd.station.v4` et `?bonus=true`
-        -> `[]` sur Lyon. Pour la carte, préférez le GBFS (§ 10) ou l'API JCDecaux v3.
+        Sans `Accept` versionné -> `application/station+json`, mêmes champs que `vnd.station.v4` (inclut des
+        stations de test) ; la shape legacy `StationLegacy` est retirée au 23/10/2026. Avec `vnd.station.v4`
+        et `?bonus=true` -> `[]` sur Lyon. Pour la carte, préférez le GBFS (§ 10) ou l'API JCDecaux v3.
       x-status: live
       parameters:
         - { name: bonus, in: query, schema: { type: boolean } }
@@ -625,8 +625,8 @@ paths:
         '200':
           description: OK
           content:
-            application/json:
-              schema: { type: array, items: { $ref: '#/components/schemas/StationLegacy' } }
+            application/station+json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Station' } }
             application/vnd.station.v4+json:
               schema: { type: array, items: { $ref: '#/components/schemas/Station' } }
   /contracts/{contract}/stations/{number}:
@@ -637,7 +637,7 @@ paths:
       tags: [Stations et vélos]
       operationId: getStation
       summary: Détail temps réel d'une station
-      description: 'Sans `Accept: application/vnd.station.v4+json`, shape legacy avec la liste des vélos (`bikes[]`).'
+      description: 'Sans `Accept: application/vnd.station.v4+json`, `application/station+json` aux mêmes champs que la v4 (relevé du 23/10/2026) ; la shape legacy avec la liste des vélos (`bikes[]`) est retirée.'
       x-status: observed
       responses:
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -646,8 +646,8 @@ paths:
           content:
             application/vnd.station.v4+json:
               schema: { $ref: '#/components/schemas/Station' }
-            application/json:
-              schema: { $ref: '#/components/schemas/StationLegacy' }
+            application/station+json:
+              schema: { $ref: '#/components/schemas/Station' }
   /contracts/{contract}/stations/{number}/info:
     parameters:
       - $ref: '#/components/parameters/contract'
@@ -2393,7 +2393,7 @@ components:
 
     StationLegacy:
       type: object
-      description: Shape renvoyée sans `Accept` versionné.
+      description: Shape renvoyée sans `Accept` versionné jusqu'au 23/10/2026, retirée depuis (`application/station+json` aux champs de `Station`). Gardée pour les anciens clients.
       properties:
         label: { type: string }
         open: { type: boolean }

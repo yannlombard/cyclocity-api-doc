@@ -511,7 +511,7 @@
           "id": "cyclocity-02-00"
         },
         {
-          "name": "✅ Station (shape legacy, sans Accept)",
+          "name": "✅ Station sans Accept (application/station+json, champs v4 ; legacy retirée le 23/10/2026)",
           "request": {
             "method": "GET",
             "header": [
@@ -549,7 +549,7 @@
           "id": "cyclocity-02-02"
         },
         {
-          "name": "✅ live Toutes les stations (legacy)",
+          "name": "✅ live Toutes les stations sans Accept (application/station+json, champs v4)",
           "request": {
             "method": "GET",
             "header": [
