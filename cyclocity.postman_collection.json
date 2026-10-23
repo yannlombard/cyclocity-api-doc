@@ -288,7 +288,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["contracts", "{{contract}}", "topics"]
             },
-            "description": ""
+            "description": " Route du site web : l'app Android 3.6.1 ne l'appelle pas, elle connaît ses codes."
           },
           "id": "cyclocity-01-06"
         },
@@ -303,7 +303,7 @@
               },
               {
                 "key": "Content-Type",
-                "value": "application/json"
+                "value": "application/json; charset=UTF-8"
               }
             ],
             "url": {
@@ -311,10 +311,10 @@
               "host": ["{{baseUrl}}"],
               "path": ["contracts", "{{contract}}", "faqs", "search"]
             },
-            "description": "",
+            "description": "Corps FaqsCriterias de l'app Android 3.6.1 (topicId à null). code : RIDE, ABO, PAY sur Lyon (l'app connaît aussi VLS et PARKING).",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"language\": \"fr\",\n  \"code\": \"RIDE\"\n}",
+              "raw": "{\n  \"topicId\": null,\n  \"language\": \"fr\",\n  \"code\": \"RIDE\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -420,9 +420,42 @@
                 }
               ]
             },
-            "description": "Motifs signalables : [{ id, code, label, rating, order, isElectricBike, … }]. Refusé au client token web (403 role.not.allowed, avec ou sans Identity, vérifié le 03/10/2026) : prendre le client token iOS ou Android. 8 motifs de premier niveau (code DT_DECLARED_399 autre, 317 selle, 316 guidon, 315 pédale, 314 frein, 313 roue, 312 feu, 441 assistance électrique) et 26 sous-motifs sans order (code ONE_STAR / TWO_STARS). Le code retenu part dans le corps de « Noter le vélo » (6. Trajets), sous le nom cdrCode. Sans l'Accept versionné : 415/406."
+            "description": "Motifs signalables : [{ id, code, label, rating, order, isElectricBike, … }]. Refusé au client token web (403 role.not.allowed, avec ou sans Identity, vérifié le 03/10/2026) : prendre le client token iOS ou Android. 8 motifs de premier niveau (code DT_DECLARED_399 autre, 317 selle, 316 guidon, 315 pédale, 314 frein, 313 roue, 312 feu, 441 assistance électrique) et 26 sous-motifs sans order (code ONE_STAR / TWO_STARS). Route de l'app Android 3.3.10 ; la 3.6.1 lit « Groupes de motifs » ci-dessous. Sans l'Accept versionné : 415/406."
           },
           "id": "cyclocity-01-11"
+        },
+        {
+          "name": "📱 ✅ live Groupes de motifs (« Je déconseille », app Android 3.6.1)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Taknv1 {{takn}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/vnd.defect-type-group.v1+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contracts/{{contract}}/defect-type-groups?locale=fr&withDefectTypes=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["contracts", "{{contract}}", "defect-type-groups"],
+              "query": [
+                {
+                  "key": "locale",
+                  "value": "fr"
+                },
+                {
+                  "key": "withDefectTypes",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Les motifs par groupe : [{ id, label: \"2. Frein\", translation, isElectrical, defectTypes: [{ id, value: \"Freine mal\", isCommentMandatory, rating: 30 }] }]. 9 groupes et 26 motifs à Lyon (relevé du 23/10/2026). Refusé au client token web (403 role.not.allowed) : prendre celui de l'app Android. L'id du motif part dans CREATE_BIKE_DEFECT (8. Process), son rating (30 ou 60) dans « Noter le vélo » (6. Trajets)."
+          },
+          "id": "cyclocity-01-11b"
         },
         {
           "name": "✅ live PDF des CGU valides (VLS), en base64",
@@ -907,7 +940,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/contracts/{{contract}}/accounts/{{accountId}}/stationbookmarks/{{stationNumber}}",
+              "raw": "{{baseUrl}}/contracts/{{contract}}/accounts/{{accountId}}/stationbookmarks/{{stationNumber}}/",
               "host": ["{{baseUrl}}"],
               "path": [
                 "contracts",
@@ -915,7 +948,8 @@
                 "accounts",
                 "{{accountId}}",
                 "stationbookmarks",
-                "{{stationNumber}}"
+                "{{stationNumber}}",
+                ""
               ]
             },
             "description": ""
@@ -941,7 +975,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/contracts/{{contract}}/accounts/{{accountId}}/stationbookmarks/{{stationNumber}}",
+              "raw": "{{baseUrl}}/contracts/{{contract}}/accounts/{{accountId}}/stationbookmarks/{{stationNumber}}/",
               "host": ["{{baseUrl}}"],
               "path": [
                 "contracts",
@@ -949,7 +983,8 @@
                 "accounts",
                 "{{accountId}}",
                 "stationbookmarks",
-                "{{stationNumber}}"
+                "{{stationNumber}}",
+                ""
               ]
             },
             "description": ""
@@ -1102,10 +1137,6 @@
               {
                 "key": "Authorization",
                 "value": "Taknv1 {{takn}}"
-              },
-              {
-                "key": "Accept",
-                "value": "application/vnd.offer.v2+json"
               }
             ],
             "url": {
@@ -1265,12 +1296,8 @@
                 "value": "Taknv1 {{takn}}"
               },
               {
-                "key": "Identity",
-                "value": "{{identity}}"
-              },
-              {
                 "key": "Content-Type",
-                "value": "application/json"
+                "value": "application/json; charset=UTF-8"
               }
             ],
             "url": {
@@ -1287,10 +1314,10 @@
                 "packages"
               ]
             },
-            "description": "Calcul de prix uniquement. Le débit intervient dans le process SHORT_TERM_SUBSCRIPTION_V2 (dossier 8).",
+            "description": "Calcul de prix uniquement. Le débit intervient dans le process SHORT_TERM_SUBSCRIPTION_V2 (dossier 8). Corps OfferSupplements de l'app Android 3.6.1, toutes les clés, null compris ; sans Identity ni Accept (l'app iOS ajoute Identity). birthDate et paymentMethod seulement pour un compte qui a un moyen de paiement.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"paymentMethod\": \"CB\",\n  \"birthDate\": \"1984-09-12T00:00:00\",\n  \"supplements\": []\n}",
+              "raw": "{\n  \"supplements\": [],\n  \"promocode\": null,\n  \"subscriptionStart\": \"2026-03-01T10:12:00\",\n  \"birthDate\": \"1990-01-01\",\n  \"paymentMethod\": \"CB\",\n  \"deliveryType\": null,\n  \"bikeModelId\": null,\n  \"renewal\": false\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1352,7 +1379,7 @@
           "id": "cyclocity-05-00"
         },
         {
-          "name": "✅ Abonnement utilisable pour déverrouiller (ST)",
+          "name": "✅ Abonnements utilisables pour déverrouiller (ST et LT, app Android)",
           "request": {
             "method": "GET",
             "header": [
@@ -1370,25 +1397,29 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/contracts/{{contract}}/accounts/{{accountId}}/subscriptions?isLocked=0&periods=CURRENT&type=ST",
+              "raw": "{{baseUrl}}/contracts/{{contract}}/accounts/{{accountId}}/subscriptions?periods=CURRENT&typeList=ST&typeList=LT&isLocked=false",
               "host": ["{{baseUrl}}"],
               "path": ["contracts", "{{contract}}", "accounts", "{{accountId}}", "subscriptions"],
               "query": [
-                {
-                  "key": "isLocked",
-                  "value": "0"
-                },
                 {
                   "key": "periods",
                   "value": "CURRENT"
                 },
                 {
-                  "key": "type",
+                  "key": "typeList",
                   "value": "ST"
+                },
+                {
+                  "key": "typeList",
+                  "value": "LT"
+                },
+                {
+                  "key": "isLocked",
+                  "value": "false"
                 }
               ]
             },
-            "description": ""
+            "description": "Une requête, comme l'app Android 3.6.1 (typeList répété). L'app iOS envoie ?isLocked=0&periods=CURRENT&type=ST puis type=LT. L'app écarte ensuite les abonnements locked et ceux sans période."
           },
           "id": "cyclocity-05-01"
         },
@@ -1594,7 +1625,7 @@
               },
               {
                 "key": "Accept",
-                "value": "application/vnd.trip.v5+json"
+                "value": "application/vnd.trip.v6+json"
               }
             ],
             "url": {
@@ -1621,7 +1652,7 @@
               },
               {
                 "key": "Accept",
-                "value": "application/vnd.trip.v5+json"
+                "value": "application/vnd.trip.v6+json"
               }
             ],
             "url": {
@@ -1744,12 +1775,8 @@
                 "value": "{{identity}}"
               },
               {
-                "key": "Accept",
-                "value": "application/vnd.trip.v5+json"
-              },
-              {
                 "key": "Content-Type",
-                "value": "application/vnd.trip.v5+json"
+                "value": "application/vnd.trip.v6+json"
               }
             ],
             "url": {
@@ -1765,10 +1792,10 @@
                 "rate"
               ]
             },
-            "description": "Une seule notation par trajet, sur un trajet dont isRated vaut false ({{tripId}} = id d'une entrée de « Historique des trajets »). bikeId est le NUMÉRO du vélo (bikeNumber du trajet), pas son UUID. recommended est binaire ; cdrCode ne se remplit que si recommended vaut false, avec un code de « Types de défauts » (1. Contrat). Pour « Je déconseille », l'app lance d'abord le process CREATE_BIKE_DEFECT (8. Process) et n'envoie cette notation que s'il réussit. Délai : 3 heures après la fin du trajet. Réponse : le corps en écho. Route lue dans l'app Android 3.3.10, non exercée en capture.",
+            "description": "Une seule notation par trajet, sur un trajet dont isRated vaut false ({{tripId}} = id d'une entrée de « Historique des trajets »). bikeId est le NUMÉRO du vélo (bikeNumber du trajet), pas son UUID. recommended est binaire ; rating vaut null pour un vélo recommandé, sinon le rating (30 ou 60) d'un motif de « Groupes de motifs » (1. Contrat). Pour « Je déconseille », l'app lance d'abord le process CREATE_BIKE_DEFECT (8. Process) et n'envoie cette notation que s'il réussit. Délai : 3 heures après la fin du trajet. Réponse : le corps en écho. Corps et Content-Type de l'app Android 3.6.1 (la 3.3.10 envoyait cdrCode en trip.v5), non exercés en capture.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"bikeId\": {{bikeNumber}},\n  \"recommended\": true,\n  \"contract\": \"{{contract}}\",\n  \"cdrCode\": null\n}",
+              "raw": "{\n  \"bikeId\": {{bikeNumber}},\n  \"recommended\": true,\n  \"contract\": \"{{contract}}\",\n  \"rating\": null\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1970,10 +1997,6 @@
               {
                 "key": "Identity",
                 "value": "{{identity}}"
-              },
-              {
-                "key": "Accept",
-                "value": "application/vnd.pay.v1+json"
               },
               {
                 "key": "Content-Type",
@@ -2331,10 +2354,6 @@
                 "value": "{{identity}}"
               },
               {
-                "key": "Accept",
-                "value": "application/vnd.processes.v2+json"
-              },
-              {
                 "key": "Content-Type",
                 "value": "application/vnd.processes.v2+json"
               }
@@ -2344,7 +2363,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["contracts", "{{contract}}", "accounts", "{{accountId}}", "processes"]
             },
-            "description": "ACTION PAYANTE. `startDateMs` = timestamp ms de début souhaité ; `cgauVersion` = valeur de « CGU valides (VLS) ». Vérifier `inError: false` dans la réponse. Plusieurs tickets d'un coup : ajouter `\"nbTickets\": 3` (nombre nu, de 2 au `nbTickets` de l'offre) aux paramètres ; le débit devient finalPrice + (n - 1) × initialPrice (lu dans l'APK 3.3.10, jamais exercé).",
+            "description": "ACTION PAYANTE. `startDateMs` = timestamp ms de début souhaité ; `cgauVersion` = valeur de « CGU valides (VLS) ». Vérifier `inError: false` dans la réponse. Plusieurs tickets d'un coup : ajouter `\"nbTickets\": 3` (nombre nu, de 2 au `nbTickets` de l'offre) aux paramètres ; le débit devient finalPrice + (n - 1) × initialPrice (lu dans l'APK 3.3.10, jamais exercé). L'app Android 3.6.1 n'envoie que le Content-Type, et ajoute aux paramètres proofs: [], tacitResubscription et l'adresse du compte (address, city, zipcode) ; voir § 6.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"type\": \"SHORT_TERM_SUBSCRIPTION_V2\",\n  \"parameters\": {\n    \"platform\": \"MOBILE\",\n    \"badgeType\": \"EXTERNAL\",\n    \"badgeId\": \"<[Format:java.lang.Long]>22\",\n    \"offerId\": \"<[Format:java.lang.Long]>75171\",\n    \"startDate\": \"<[Format:java.util.Date]>{{startDateMs}}\",\n    \"cgauVersion\": \"003.002\",\n    \"supplements\": [],\n    \"optionIds\": [],\n    \"optInPartner\": false,\n    \"optInSystem\": false,\n    \"browserJavaEnabled\": true,\n    \"browserTimeZone\": -60,\n    \"browserColorDepth\": 32,\n    \"browserScreenWidth\": 390,\n    \"browserScreenHeight\": 844\n  }\n}",
@@ -2423,7 +2442,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["contracts", "{{contract}}", "accounts", "{{accountId}}", "processes"]
             },
-            "description": "ACTION RÉELLE : ouvre un signalement chez l'opérateur, et bikeDefectDeclaredBlocked à true peut retirer le vélo du service. Ne pas l'essayer sur un vélo en bon état. C'est l'écran « Je déconseille ce vélo » de l'app Android : ce process part d'abord, et la notation (6. Trajets, /rate avec recommended false et le cdrCode du motif) seulement s'il réussit. bikeDefectTypeId est l'id (UUID) d'une entrée de « Types de défauts » (1. Contrat), pas son cdrCode ; bikeNumber est le numéro du vélo. Aucun identifiant de trajet. processOrigin: \"Selfcare\" s'ajoute quand le signalement part de « Besoin d'aide ». Pas de returns, pas d'Accept déclaré ; réponse : ProcessResult. Lu dans le binaire Android 3.3.10, jamais exercé (📱). Voir § 6.4.",
+            "description": "ACTION RÉELLE : ouvre un signalement chez l'opérateur, et bikeDefectDeclaredBlocked à true peut retirer le vélo du service. Ne pas l'essayer sur un vélo en bon état. C'est l'écran « Je déconseille ce vélo » de l'app Android : ce process part d'abord, et la notation (6. Trajets, /rate avec recommended false et le rating du motif) seulement s'il réussit. bikeDefectTypeId est l'id (UUID) d'un motif de « Groupes de motifs » (1. Contrat) ; bikeDefectComment est absent quand il est vide ; bikeNumber est le numéro du vélo. Aucun identifiant de trajet. processOrigin: \"Selfcare\" s'ajoute quand le signalement part de « Besoin d'aide ». Pas de returns, pas d'Accept déclaré ; réponse : ProcessResult. Lu dans le binaire Android 3.3.10 puis 3.6.1, jamais exercé (📱). Voir § 6.4.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"type\": \"CREATE_BIKE_DEFECT\",\n  \"parameters\": {\n    \"bikeDefectTypeId\": \"<[Format : java.util.UUID]>{{defectTypeId}}\",\n    \"bikeNumber\": \"<[Format : java.lang.Long]>{{bikeNumber}}\",\n    \"bikeDefectDomain\": \"BIKE\",\n    \"bikeDefectIsClosed\": false,\n    \"bikeDefectComment\": \"Frein arrière qui frotte\",\n    \"bikeDefectUserType\": \"CUSTOMER\",\n    \"accountId\": \"<[Format : java.util.UUID]>{{accountId}}\",\n    \"bikeDefectDeclaredBlocked\": false,\n    \"platform\": \"MOBILE\",\n    \"contract\": \"{{contract}}\"\n  }\n}",
