@@ -526,7 +526,7 @@ Table de référence (versions du front web + observations mobile) :
 | Compte                   | `application/vnd.account.v4+json` (le front déclare aussi un `v3` pour `GET /accounts`)                                                  | `accounts/{id}`, `/alerts`, `/cgau`, `/offers`, `/offerGroups/{g}/offers`, `/stationbookmarks/{s}` |
 | Abonnements              | `application/vnd.subscription.v6+json`                                                                                                   | `subscriptions`, `/statuses`, `/rentbike`                                                          |
 | Offres de renouvellement | `application/vnd.renewalOffer.v2+json`                                                                                                   | `subscriptions/{s}/renewaloffers`                                                                  |
-| Trajets                  | `application/vnd.trip.v5+json` (ce document) ; l'app 3.6.1 demande `application/vnd.trip.v6+json` sur `trips` et `trips/ongoing` (§ 5.6) | `trips`, `trips/ongoing`, `POST .../trips`, `POST .../trips/{tripId}/rate`                         |
+| Trajets                  | `application/vnd.trip.v5+json` (ce document) ; l'app 3.6.1 demande `application/vnd.trip.v6+json` sur `trips` et `trips/ongoing`, et l'envoie en `Content-Type` de `POST .../trips` (§ 5.6) | `trips`, `trips/ongoing`, `POST .../trips`, `POST .../trips/{tripId}/rate`                         |
 | Offres                   | `application/vnd.offer.v2+json`                                                                                                          | `offers`, `offers/{id}`, `offers/{id}/price`, `offerGroups`, `offerGroups/{g}/offers`, `/picture`  |
 | Stations                 | `application/vnd.station.v4+json`                                                                                                        | `stations`, `stations/{n}`                                                                         |
 | Vélos                    | `application/vnd.bikes.v3+json` (mobile) / `v4` (web, sur-ensemble de `v3`, à préférer)                                                  | `bikes`                                                                                            |
@@ -1244,8 +1244,8 @@ Patterns de l'app : écran station -> `?isLocked=0&periods=CURRENT&type=ST` **et
 
 ```bash
 A="https://api.cyclocity.fr/contracts/lyon/accounts/$ACCOUNT_ID"; V='Accept: application/vnd.trip.v5+json'
-curl -s -X POST "$A/subscriptions/$SUB_ID/trips" -H "Authorization: Taknv1 $TAKN" -H "Identity: $IDENTITY" -H "$V" -H 'Content-Type: application/vnd.trip.v5+json' \
-  -d '{"stationNumber":2002,"bikeNumber":20449,"standNumber":1,"typeFrom":"SMARTPHONE"}'   # -> {"transactionState":"OK"}
+curl -s -X POST "$A/subscriptions/$SUB_ID/trips" -H "Authorization: Taknv1 $TAKN" -H "Identity: $IDENTITY" -H 'Content-Type: application/vnd.trip.v6+json' \
+  -d '{"stationNumber":2002,"standNumber":1,"bikeNumber":20449,"typeFrom":"SMARTPHONE"}'   # -> {"transactionState":"OK"}
 watch -n 5 "curl -s '$A/trips/ongoing' -H "Authorization: Taknv1 $TAKN" -H "Identity: $IDENTITY" -H '$V'"                                       # polling
 curl -s "$A/trips" -H "Authorization: Taknv1 $TAKN" -H "Identity: $IDENTITY" -H "$V" | jq '.[0]'
 curl -s "$A/stats?period=WEEK&startDate=2026-03-01T23:00:00&endDate=2026-03-08T22:59:59&statsType=TRIPS_COUNTS&statsType=TRIPS_DURATIONS&statsType=TRIPS_REWARDS" \
@@ -1258,15 +1258,14 @@ curl -s "$A/stats?period=WEEK&startDate=2026-03-01T23:00:00&endDate=2026-03-08T2
 POST /contracts/lyon/accounts/{id}/subscriptions/{subscriptionId}/trips
 Authorization: Taknv1 ...
 Identity: ...
-Content-Type: application/vnd.trip.v5+json
-Accept: application/vnd.trip.v5+json
+Content-Type: application/vnd.trip.v6+json
 
-{ "stationNumber": 2002, "bikeNumber": 20449, "standNumber": 1, "typeFrom": "SMARTPHONE" }
+{ "stationNumber": 2002, "standNumber": 1, "bikeNumber": 20449, "typeFrom": "SMARTPHONE" }
 ```
 
 -> `200 { "transactionState": "OK" }`. `{subscriptionId}` = `id` d'un abonnement courant non verrouillé (`?isLocked=0&periods=CURRENT&type=ST|LT`). Si aucun abonnement valide, l'app propose l'offre `default.short.term.offer.id` (75171).
 
-Les en-têtes ci-dessus sont ceux de la capture (session 8). L'interface Retrofit de l'app Android 3.3.10 (`tg/s`) ne déclare que le `Content-Type: application/vnd.trip.v5+json`, **sans `Accept`** ; la réponse ne porte que `transactionState`. Les trois nombres sont des `Integer` nullables : `standNumber` est absent pour un vélo de station virtuelle (§ 5.2), ce qui n'arrive pas à Lyon.
+Les en-têtes ci-dessus sont ceux de l'app Android 3.6.1 (`ug/s`, lue le 23/10/2026) : le seul `Content-Type: application/vnd.trip.v6+json`, **sans `Accept`**, les champs dans l'ordre du constructeur `ReleaseBikeRequest`. La 3.3.10 (`tg/s`) envoyait le même corps en `Content-Type: application/vnd.trip.v5+json`, et la capture iOS de la session 8 y ajoutait `Accept: application/vnd.trip.v5+json` : le serveur accepte les trois. La réponse ne porte que `transactionState`, seul champ de `ReleaseBikeResponse`. Les trois nombres sont des `Integer` nullables : `standNumber` est absent pour un vélo de station virtuelle (§ 5.2), ce qui n'arrive pas à Lyon.
 
 **La requête ne porte aucune position.** Le serveur ne peut donc pas vérifier que l'utilisateur se tient devant la borne : seul le client l'empêche de libérer un vélo à distance, qu'un autre pourrait emporter sur son compte.
 
@@ -1298,7 +1297,9 @@ Les en-têtes ci-dessus sont ceux de la capture (session 8). L'interface Retrofi
 | `kiwi.exception.no.release.bike`                  | « Problème technique lors de la libération de vélo. »           |
 | `trips.exception.invalid.customer.credit`         | reconnu, sans message propre (message générique)                |
 
-Un code absent de cette table a été observé le 06/10/2026 : `404 {"code":"trips.exception.bookings.already.reserved","message":"Bike reserved by another user"}`, en libérant un vélo réservé par un autre usager (`AVAILABLE` et `isReserved: true`, § 5.9). L'app Android l'affiche avec le message générique.
+Un code absent de cette table a été observé le 06/10/2026 : `404 {"code":"trips.exception.bookings.already.reserved","message":"Bike reserved by another user"}`, en libérant un vélo réservé par un autre usager (`AVAILABLE` et `isReserved: true`, § 5.9). L'app Android l'affiche avec le message générique, et la 3.6.1 n'en a toujours pas de propre.
+
+**Le même code peut refuser le vélo qu'on a soi-même réservé.** Observé le 22/10/2026 : un compte réserve un vélo électrique (`POST /bookings` réussi), puis le libère sept minutes plus tard, réservation encore en cours. Les quatre essais reçoivent `404 trips.exception.bookings.already.reserved`, « Bike reserved by another user ». Le compte n'avait qu'un abonnement : la réservation et la libération portaient le même `{subscriptionId}`. Le corps était celui de l'app officielle, et le même client avait libéré huit vélos réservés de la même façon entre le 08/10 et le 22/10, dont deux le jour même. Aucune requête ne contourne ce refus : l'app officielle n'envoie rien de plus pour un vélo réservé (§ 5.9). Cause inconnue, côté serveur.
 
 Après le `200`, la borne libère le vélo quelques secondes ; si le vélo n'est pas retiré, elle se reverrouille et **aucun trajet n'est créé** (`trips/ongoing` reste `[]`). L'app **polle `trips/ongoing` toutes les ~5-10 s** ; ~10 s après le décrochage le trajet apparaît :
 
@@ -1721,7 +1722,7 @@ Identity: {accessToken}
 | `subscriptionId` | UUID d'un abonnement `ST` ou `LT` en cours et non verrouillé (§ 5.5)                                         |
 | `bikeId`         | `id` (UUID) du vélo, lu dans `GET /bikes`. Pas son **numéro**, à l'inverse de `/trips/{tripId}/rate` (§ 5.6) |
 
-L'interface Retrofit ne déclare **aucun en-tête** : le corps part en `application/json; charset=UTF-8` (convertisseur Gson) et sans `Accept`. Le `GET`, capturé sur l'app iOS avec `Accept: */*`, répond `Content-Type: application/booking+json`.
+L'interface Retrofit ne déclare **aucun en-tête** : le corps part en `application/json; charset=UTF-8` (convertisseur Jackson), sans `Accept`, les champs dans l'ordre du constructeur `CreateBooking` ci-dessus. Inchangé dans l'app 3.6.1 (`ug/d`, `cl/a`). Le `GET`, capturé sur l'app iOS avec `Accept: */*`, répond `Content-Type: application/booking+json`.
 
 Réponse du `POST`, et forme de chaque élément du `GET` :
 
@@ -1755,7 +1756,7 @@ L'app n'appelle rien pour débiter les points : c'est le serveur qui les retire.
 
 **L'affichage.** L'app croise `GET /bookings` et `GET /bikes` par `bikeId` (`gh/b`) :
 
-- un vélo `RESERVED` réservé par le compte affiche « Vite ! Votre vélo vous attend » et le temps restant jusqu'à `endTime`. Il se libère comme un autre, par `POST .../trips` (§ 5.6) ;
+- un vélo `RESERVED` réservé par le compte affiche « Vite ! Votre vélo vous attend » et le temps restant jusqu'à `endTime`. Il se libère **exactement** comme un autre, par `POST .../trips` (§ 5.6) : ni l'`id` de la réservation ni son `subscriptionId` ne sont envoyés. Le modèle de l'app ne lit d'une réservation que `bikeId`, `endTime` et `standNumber` (`lh/a` en 3.3.10, `mh/a` en 3.6.1). Le serveur peut pourtant refuser ce vélo en `404 trips.exception.bookings.already.reserved` (§ 5.6, observé le 22/10/2026) ;
 - un vélo `RESERVED` sans réservation du compte affiche « Réservé par un utilisateur ». L'app refuse de le libérer sans appeler l'API ;
 - une fois `endTime` passé, l'app tient la réservation pour expirée, même si le vélo porte encore le statut `RESERVED`.
 
@@ -1763,7 +1764,7 @@ L'app n'appelle rien pour débiter les points : c'est le serveur qui les retire.
 
 « Réserver ce vélo » n'est proposé que si trois conditions sont réunies : le contrat déclare la feature `bike.booking.duration` (sa seule présence suffit, la valeur n'est pas lue), le vélo est à une borne, et il n'est pas déjà réservé.
 
-Lu dans le binaire Android 3.3.10 : `tg/d` pour les routes, `CreateBooking` et `Booking` pour les corps, `il/a$a` pour le parcours, `iq/d$b` pour l'affichage. Seul le `GET` a été capturé, et seulement vide (§ 7.2). Le `POST` n'a **jamais été exercé** : il coûte des points et retire le vélo aux autres usagers pendant 15 min. La table des codes d'erreur de l'app ne contient aucun code propre aux réservations : tout échec y affiche « La réservation de votre vélo n'a pas fonctionné. » (`booking_bike_failed`), sans recharger la station. Un refus a été observé le 06/10/2026, quatre fois de suite sur un vélo réservé par un autre usager : `400 {"code":"booking.exception.bike.already.reserved","message":"The requested bike is already reserved"}`. Un second refus a été observé le 12/10/2026, quatre fois de suite, dix minutes après une réservation réussie du même compte encore en cours : `400 {"code":"bookings.exception.not.authorized","message":"The booking is not authorized"}` (notez le pluriel `bookings`). Rien ne le documente, mais aucune seconde réservation n'a abouti pendant qu'une autre courait : un compte n'a qu'**une réservation à la fois**.
+Lu dans le binaire Android 3.3.10, et relu identique dans la 3.6.1 le 23/10/2026 (qui reste en `bikes.v3`) : `tg/d` pour les routes, `CreateBooking` et `Booking` pour les corps, `il/a$a` pour le parcours, `iq/d$b` pour l'affichage. Seul le `GET` a été capturé, et seulement vide (§ 7.2). Le `POST` n'a été relevé que par ses refus, ci-dessous : sa réponse de succès n'a jamais été notée telle quelle. Il coûte des points et retire le vélo aux autres usagers pendant 15 min. La table des codes d'erreur de l'app ne contient aucun code propre aux réservations : tout échec y affiche « La réservation de votre vélo n'a pas fonctionné. » (`booking_bike_failed`), sans recharger la station. Un refus a été observé le 06/10/2026, quatre fois de suite sur un vélo réservé par un autre usager : `400 {"code":"booking.exception.bike.already.reserved","message":"The requested bike is already reserved"}`. Un second refus a été observé le 12/10/2026, quatre fois de suite, dix minutes après une réservation réussie du même compte encore en cours : `400 {"code":"bookings.exception.not.authorized","message":"The booking is not authorized"}` (notez le pluriel `bookings`). Rien ne le documente, mais aucune seconde réservation n'a abouti pendant qu'une autre courait : un compte n'a qu'**une réservation à la fois**.
 
 ### 5.10 Le vélo en Bluetooth : station virtuelle et arrêt minute (📱)
 

@@ -1027,10 +1027,11 @@ paths:
       operationId: createBooking
       summary: Réserver un vélo (15 min, 10 points de fidélité)
       description: |
-        Lu dans le binaire Android 3.3.10 (`tg/d`, `CreateBooking`, `il/a$a`), jamais exercé : l'appel
+        Lu dans le binaire Android 3.3.10 (`tg/d`, `CreateBooking`, `il/a$a`), relu identique dans la
+        3.6.1 (`ug/d`, `cl/a`) ; refus observés, réponse de succès jamais relevée telle quelle. L'appel
         coûte des points et retire le vélo aux autres usagers pendant la durée de la feature
         `bike.booking.duration` (900 s à Lyon). Aucun en-tête déclaré : le corps part en
-        `application/json` (Gson), sans `Accept`. Avant l'appel, l'app vérifie le solde
+        `application/json; charset=UTF-8` (Jackson), sans `Accept`. Avant l'appel, l'app vérifie le solde
         (`GET .../rewards`) contre le `reward` de l'entrée `BIKE_BOOKING` de
         `GET /rewards/configurations`, puis choisit un abonnement ST ou LT en cours. Pas de route
         d'annulation. README § 5.9.
@@ -1400,22 +1401,20 @@ paths:
 
         La requête ne porte aucune position : c'est le client qui vérifie, avant l'appel, que l'utilisateur est à
         moins de `bike.release.distance` (200 m) de la station, que le compte n'est pas verrouillé (`isLocked`) et
-        que le moyen de paiement est valide (`paymentValid` de `GET .../payment`). L'app Android 3.3.10 n'envoie
-        que le `Content-Type`, sans `Accept`. Contrôles, messages par `transactionState` et codes de refus : README § 5.6.
+        que le moyen de paiement est valide (`paymentValid` de `GET .../payment`). L'app Android 3.6.1 n'envoie
+        que le `Content-Type: application/vnd.trip.v6+json`, sans `Accept`, champs dans l'ordre stationNumber,
+        standNumber, bikeNumber, typeFrom ; la 3.3.10 envoyait le même corps en `v5`, accepté aussi. Un vélo réservé
+        par le compte se libère par la même requête, sans référence à la réservation. Contrôles, messages par
+        `transactionState` et codes de refus : README § 5.6.
       security: [{ Taknv1: [], Identity: [] }]
       x-status: observed
       requestBody:
         required: true
         content:
+          application/vnd.trip.v6+json:
+            schema: { $ref: '#/components/schemas/ReleaseBikeRequest' }
           application/vnd.trip.v5+json:
-            schema:
-              type: object
-              required: [stationNumber, bikeNumber, standNumber, typeFrom]
-              properties:
-                stationNumber: { type: integer, examples: [2002] }
-                bikeNumber: { type: integer, examples: [20449] }
-                standNumber: { type: integer, examples: [1] }
-                typeFrom: { type: string, enum: [SMARTPHONE] }
+            schema: { $ref: '#/components/schemas/ReleaseBikeRequest' }
       responses:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/ForbiddenIdentity' }
@@ -1441,7 +1440,9 @@ paths:
             `kiwi.exception.customer.paymentmode.not.valid` (moyen de paiement à mettre à jour),
             `kiwi.exception.no.release.bike` (problème technique), `trips.exception.invalid.customer.credit`.
             Observé hors de cette liste : `404 trips.exception.bookings.already.reserved` (« Bike reserved
-            by another user »), vélo `AVAILABLE` à `isReserved: true` réservé par un autre usager (06/10/2026).
+            by another user »), vélo `AVAILABLE` à `isReserved: true` réservé par un autre usager (06/10/2026),
+            et le même code sur un vélo réservé par le compte lui-même, réservation en cours et même abonnement
+            (22/10/2026, cause inconnue côté serveur).
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
@@ -2707,6 +2708,17 @@ components:
           examples: [DT_DECLARED_313]
         isElectricBike: { type: boolean, description: Motif réservé aux vélos électriques }
 
+    ReleaseBikeRequest:
+      type: object
+      description: >-
+        Corps de `POST .../subscriptions/{subscriptionId}/trips` (README § 5.6), dans l'ordre de l'app
+        Android 3.6.1. Les trois nombres sont nullables : `standNumber` manque pour un vélo de station virtuelle.
+      required: [stationNumber, standNumber, bikeNumber, typeFrom]
+      properties:
+        stationNumber: { type: integer, examples: [2002] }
+        standNumber: { type: integer, examples: [1] }
+        bikeNumber: { type: integer, examples: [20449] }
+        typeFrom: { type: string, enum: [SMARTPHONE] }
     CreateBooking:
       type: object
       description: Corps de `POST .../bookings` (README § 5.9).
