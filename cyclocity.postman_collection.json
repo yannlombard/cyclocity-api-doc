@@ -2008,7 +2008,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["contracts", "{{contract}}", "accounts", "{{accountId}}", "pay", "checkout"]
             },
-            "description": "",
+            "description": "Ouvre la page Worldline : la carte s'y saisit, puis la page revient sur `returnUrl`. Confirmer ensuite par un process `REGISTER_PAYMENT_METHOD` avec `checkoutId` (§ 6 du README). Vérifié le 24/10/2026 : le retour porte les mêmes paramètres (`RETURNMAC`, `hostedCheckoutId`) que la page ait été validée ou annulée ; après une annulation, `REGISTER_PAYMENT_METHOD` répond `inError: true` avec `pay.exception.checkout.payment-infos.not.found`. Montant affiché : 0,00 €.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"returnUrl\": \"https://velov.grandlyon.com/\",\n  \"paymentMethods\": [\n    \"CB\"\n  ]\n}",

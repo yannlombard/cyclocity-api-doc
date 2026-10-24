@@ -1632,7 +1632,9 @@ L'app Android 3.6.1 (📱, `qi/f.b`, appelée par `oo/l`, `zo/p` et `jp/p`) envo
                 "details": { "billingAddressCity", "billingAddressCountryCode", "billingAddressStreet", "billingAddressZip", "email", "phoneNumber" } } }
 ```
 
--> `200 { "id": "9300000000", "redirectUrl": "https://payment.direct.worldline-solutions.com/hostedcheckout/Payment/Form/..." }`. L'utilisateur saisit sa carte sur la page Worldline puis revient sur `returnUrl` (`ogone_redirect_accept|decline|exception` côté web) ; le front confirme ensuite via un process `REGISTER_PAYMENT_METHOD` avec `checkoutId` (§ 6). Pré-autorisation CB : 150 € (`amount.cb.authorization.to.ask`).
+-> `200 { "id": "9300000000", "redirectUrl": "https://payment.direct.worldline-solutions.com/hostedcheckout/Payment/Form/..." }`. L'utilisateur saisit sa carte sur la page Worldline puis revient sur `returnUrl` (`ogone_redirect_accept|decline|exception` côté web) ; le front confirme ensuite via un process `REGISTER_PAYMENT_METHOD` avec `checkoutId` (§ 6). Les textes du site annoncent une pré-autorisation de 150 € (`amount.cb.authorization.to.ask`) ; relevé le 24/10/2026 sur deux cartes Mastercard, la page Worldline et l'écran 3-DS de la banque affichent **0,00 €**.
+
+**Retour sur `returnUrl`, vérifié le 24/10/2026** avec un `returnUrl` unique : Worldline y revient avec les **mêmes paramètres** (`RETURNMAC`, `hostedCheckoutId`), que la carte ait été saisie ou que la page ait été annulée (« Annuler » mène à une page « Cancelled », puis au même retour). Rien dans l'URL ne distingue les deux cas : seul le process `REGISTER_PAYMENT_METHOD` le dit (§ 6). Les champs du formulaire portent les `autocomplete` standard (`cc-number`, `cc-name`, `cc-exp-month`, `cc-exp-year`, `cc-csc`), sans iframe : la saisie automatique des cartes du navigateur s'y applique.
 
 ### 5.8 Récompenses (programme fidélité)
 
@@ -1890,7 +1892,7 @@ Headers : `Content-Type` et `Accept: application/vnd.processes.v2+json`. Query o
 - son constructeur **écarte toute chaîne vide et toute valeur `null`** des `parameters`, mais garde les listes vides : `supplements` et `proofs` partent en `[]` ;
 - `platform: "MOBILE"` est ajouté à tous les process sauf `REGISTER_PAYMENT_METHOD` et `CREATE_BIKE_DEFECT` (qui porte le sien) ; les paramètres « navigateur » ci-dessous accompagnent les souscriptions et `REGISTER_PAYMENT_METHOD` ;
 - **souscription** (`SHORT_TERM_SUBSCRIPTION_V2`, `LONG_TERM_SUBSCRIPTION_V2`, `fl/a.h`) : `offerId`, `cgauVersion`, `optionIds`, `supplements`, `proofs`, `promocode`, `optInSystem`, `optInPartner`, `tacitResubscription` (le `renewal.isAuto` de l'offre), l'adresse du compte (`address`, `city`, `zipcode`), `badgeId` et `badgeType`, `startDate` s'il est choisi, `subscriptionId` pour un renouvellement, `nbTickets` (nombre nu) pour plusieurs tickets. **Aucun `orderCard`**, que le front web déclare pourtant obligatoire pour `LONG_TERM_SUBSCRIPTION_V2` ;
-- **`REGISTER_PAYMENT_METHOD`** (`pg/q.i`) : `amount: 0`, `orphan` (vrai pour une carte changée hors de tout achat, `isEditCB`), `checkoutId`, et les paramètres « navigateur ».
+- **`REGISTER_PAYMENT_METHOD`** (`pg/q.i`) : `amount: 0`, `orphan` (vrai pour une carte changée hors de tout achat, `isEditCB`), `checkoutId`, et les paramètres « navigateur ». ✅ live le 24/10/2026 : après une saisie de carte, `inError: false`, `results: {}` (~4 s), et `GET .../payment` rend la nouvelle carte. Sur un checkout **annulé** (aucune carte saisie), la réponse est `200` avec `inError: true` et `error: { "type": "FUNCTIONAL", "message": "404:pay.exception.checkout.payment-infos.not.found:Payment Infos cannot be found for given checkout ID", "complement": "[PayException] Transition : State(name=accountInfoGot) -> State(name=paymentInfoGot) executing : GetCheckoutInfosAction" }` ; la carte enregistrée reste inchangée.
 
 **Types de process** (énumération du front web) et **paramètres obligatoires** déclarés :
 

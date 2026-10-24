@@ -1833,7 +1833,7 @@ paths:
       tags: [Paiement]
       operationId: createCheckout
       summary: Ouvrir une page de paiement hébergée Worldline (enregistrement / changement de CB, 3-DS)
-      description: "L'utilisateur saisit sa carte sur `redirectUrl` puis revient sur `returnUrl` ; le front confirme ensuite via un process `REGISTER_PAYMENT_METHOD` (`checkoutId`). L'app Android 3.6.1 (`qi/i`) n'envoie que le `Content-Type`, sans `Accept`, avec `{ paymentMethods: [CB], returnUrl }`."
+      description: "L'utilisateur saisit sa carte sur `redirectUrl` puis revient sur `returnUrl` ; le front confirme ensuite via un process `REGISTER_PAYMENT_METHOD` (`checkoutId`). L'app Android 3.6.1 (`qi/i`) n'envoie que le `Content-Type`, sans `Accept`, avec `{ paymentMethods: [CB], returnUrl }`. Vérifié le 24/10/2026 : Worldline revient sur `returnUrl` avec les mêmes paramètres (`RETURNMAC`, `hostedCheckoutId`) que la page ait été validée ou annulée ; seul `REGISTER_PAYMENT_METHOD` les distingue (`inError` avec `pay.exception.checkout.payment-infos.not.found` après une annulation). Montant affiché par la page et par le 3-DS : 0,00 €."
       security: [{ Taknv1: [], Identity: [] }]
       x-status: observed
       requestBody:
@@ -2997,7 +2997,7 @@ components:
           description: 'Valeurs demandées par `?returns=`. Ex. `{ "incident_type": "PAID_AND_NO_INCIDENT" }` — rendu en clair, sans préfixe de format. Vide sans `returns`.'
         error:
           type: object
-          description: "Présent quand `inError: true` (📱, non exercé)."
+          description: "Présent quand `inError: true`. ✅ Relevé le 24/10/2026 sur un `REGISTER_PAYMENT_METHOD` dont le checkout a été annulé : `{ type: FUNCTIONAL, message: '404:pay.exception.checkout.payment-infos.not.found:Payment Infos cannot be found for given checkout ID', complement: '[PayException] …' }`. `message` commence par le statut et le code métier."
           properties:
             type: { type: string }
             message: { type: string }
