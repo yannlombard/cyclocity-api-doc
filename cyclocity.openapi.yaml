@@ -1947,6 +1947,11 @@ paths:
 
         Refus reconnus par l'app : `rewards.exception.insufficient.rewards`,
         `rewards.exception.locked.account`, `rewards.exception.no.valid.subscription`.
+
+        Les points ne remplacent pas une formule (APK 3.6.1, relue le 25/10/2026) : sans abonnement en
+        cours, le serveur refuse en `rewards.exception.no.valid.subscription`. L'app ne vérifie pas
+        l'abonnement avant l'appel, seulement l'entrée `PROMOCODE` et le solde. Non vérifié : si un
+        ticket `ST` en cours suffit. README § 5.8.
       security: [{ Taknv1: [], Identity: [] }]
       x-status: decompiled
       responses:

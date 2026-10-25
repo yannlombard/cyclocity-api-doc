@@ -1723,6 +1723,18 @@ Plafond de crédit : 500 (`rewards.credit.maximum.amount`).
 1. `POST /accounts/{id}/rewards/consume/promocode`, sans corps, `Accept: application/vnd.rewards.v5+json` -> `{ "promoCode", "offerId", "badgeId", "badgeType", "rewardsSpent" }`. **Les points sont débités ici.** Le prix est le `reward` de `PROMOCODE` (50) ; l'app masque l'écran si l'entrée est désactivée, grise le bouton tant que le solde ne suffit pas (« Il vous manque %d points pour profiter du service. »). Refus reconnus : `rewards.exception.insufficient.rewards`, `rewards.exception.locked.account` (« Pour inviter un ami vous devez avoir un compte actif. »), `rewards.exception.no.valid.subscription` (« …un abonnement en cours de validité. »).
 2. Process `SHORT_TERM_SUBSCRIPTION_V2` (§ 6) sur le même compte, avec les valeurs reçues : `promocode`, `offerId` et `badgeId` typés `Long`, `badgeType`, `startDate` (maintenant), `platform: MOBILE` et les paramètres « navigateur ». Pas de `cgauVersion`. Le ticket est l'offre `579060` « Invitation ami » (§ 5.5).
 
+**Les points ne remplacent pas une formule** (📱, relu dans l'APK 3.6.1 le 25/10/2026). Un compte sans abonnement ni ticket en cours ne peut rien en tirer :
+
+| Usage des points                                                       | Ce qu'il suppose                   | Où l'app le dit                                                                                              |
+| ---------------------------------------------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Ticket « Inviter un ami » (`PROMOCODE`, 50)                            | Un abonnement en cours de validité | `rewards.exception.no.valid.subscription`, renvoyé par le serveur                                            |
+| Payer le dépassement de la période gratuite (`autoSpend`, `REDUCTION`) | Un trajet, donc une formule        | Réglage « Utiliser automatiquement mes points fidélités quand mes trajets dépassent la période de gratuité » |
+| Réserver un vélo (`BIKE_BOOKING`, 10)                                  | Un `subscriptionId` `ST` ou `LT`   | § 5.9, étape 5                                                                                               |
+
+- **Le contrôle de formule est fait par le serveur seul.** En 3.6.1, `InviteFriendPresenter` ne lit aucun abonnement avant l'appel : il ne vérifie que l'entrée `PROMOCODE` (présente, `enable`) et le solde, puis affiche le refus que le serveur renvoie (`Error.isInvalidSubscription`, écran « Pour inviter un ami vous devez avoir un abonnement en cours de validité. »).
+- **Le ticket ami complète une formule, il n'en tient pas lieu** : il sert à libérer un second vélo, pour une autre personne, à côté de celui que la formule du compte libère déjà.
+- **Non vérifié** : si un ticket court (`ST`) en cours suffit au serveur, ou s'il exige un abonnement long (`LT`). Le message dit « abonnement » ; le parrainage, lui, exige explicitement « un abonnement longue durée valide » (`sponsorship_error_no_valid_subscription`).
+
 À ne pas confondre avec le **parrainage** de l'app (`account/sponsorship`, affiché si `Sponsorship.enable`) : il demande l'adresse du filleul et lance le process `CREATE_SPONSORSHIP_PROMOCODE`, sans points ; refus `lt.subscription.not.found` et `lt.subscription.found`.
 
 ### 5.9 Réservation d'un vélo (📱)
