@@ -479,6 +479,25 @@
             "description": "Pas de PDF brut : enveloppe JSON `{ id, filename, mimeType, translations: { id, locale, content } }`, le PDF en base64 dans `translations.content`. Le `Accept` est exigé (`415` sans, `406` avec `application/json` ou `application/pdf`). Même réponse sur `/cgau/VLS/versions/{version}/file`."
           },
           "id": "cyclocity-01-12"
+        },
+        {
+          "name": "✅ live Justificatifs demandés par les offres",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Taknv1 {{takn}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contracts/{{contract}}/locales/fr/proofs",
+              "host": ["{{baseUrl}}"],
+              "path": ["contracts", "{{contract}}", "locales", "fr", "proofs"]
+            },
+            "description": "[{ id, name, ageMin?, ageMax?, blocking, modelId?, typeReference? }]. Une offre porte les siens dans offer.proofs ; le site ne demande que ceux dont la tranche d'âge contient l'âge du compte (ageMin ≤ âge < ageMax). Correspondance offres de Lyon / justificatifs : README § 5.1."
+          },
+          "id": "cyclocity-01-13"
         }
       ],
       "id": "cyclocity-01"
@@ -1121,6 +1140,139 @@
             }
           },
           "id": "cyclocity-03-11"
+        },
+        {
+          "name": "🌐 📱 ⚠️ Téléverser un justificatif",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Taknv1 {{takn}}"
+              },
+              {
+                "key": "Identity",
+                "value": "{{identity}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contracts/{{contract}}/accounts/{{accountId}}/documents",
+              "host": ["{{baseUrl}}"],
+              "path": ["contracts", "{{contract}}", "accounts", "{{accountId}}", "documents"]
+            },
+            "description": "Ce que fait le site dès qu'un fichier est choisi à l'étape « Justificatifs », avant l'achat (app Android 3.6.1 : qi/d.c). Dépose un fichier réel sur le compte. Part attachment : un PDF ou une image ; lifeTime n'est envoyé que par le site. Réponse { documentId }, à passer dans proofs du process de souscription (README § 6.2). Non exercé : relu dans le bundle du site et l'APK le 28/10/2026.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "attachment",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "lifeTime",
+                  "value": "44640000",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id = pm.response.json().documentId; if (id) pm.collectionVariables.set('proofDocumentId', id);"
+                ]
+              }
+            }
+          ],
+          "id": "cyclocity-03-12"
+        },
+        {
+          "name": "🌐 📱 Retirer un justificatif téléversé",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Taknv1 {{takn}}"
+              },
+              {
+                "key": "Identity",
+                "value": "{{identity}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.document.v3+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contracts/{{contract}}/accounts/{{accountId}}/documents",
+              "host": ["{{baseUrl}}"],
+              "path": ["contracts", "{{contract}}", "accounts", "{{accountId}}", "documents"]
+            },
+            "description": "Ce que fait le site quand on retire un fichier avant l'achat (app Android 3.6.1 : qi/d.b). Non exercé.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"documentIds\": [\"{{proofDocumentId}}\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "id": "cyclocity-03-13"
+        },
+        {
+          "name": "🌐 📱 ⚠️ Écrire au service client (« J'ai besoin d'aide »)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Taknv1 {{takn}}"
+              },
+              {
+                "key": "Identity",
+                "value": "{{identity}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contracts/{{contract}}/accounts/{{accountId}}/mail",
+              "host": ["{{baseUrl}}"],
+              "path": ["contracts", "{{contract}}", "accounts", "{{accountId}}", "mail"]
+            },
+            "description": "ENVOIE UN VRAI MESSAGE au service client Vélo'v. complaintType : SUBSCRIPTION, PAYMENT, TRIP ou PARKING. Une part attachments par fichier : c'est la voie pour envoyer un justificatif après l'achat. Selon l'écran, le site ajoute subscriptionId, tripId, transactionId, date, amount, status ; l'app Android 3.6.1 (qi/e.a) aussi parkingId, parkingNumber, parkingName. Non exercé.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "complaintType",
+                  "value": "SUBSCRIPTION",
+                  "type": "text"
+                },
+                {
+                  "key": "message",
+                  "value": "",
+                  "type": "text"
+                },
+                {
+                  "key": "subscriptionId",
+                  "value": "{{subscriptionId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "attachments",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "id": "cyclocity-03-14"
         }
       ],
       "id": "cyclocity-03"
@@ -1326,6 +1478,97 @@
             }
           },
           "id": "cyclocity-04-07"
+        },
+        {
+          "name": "🌐 Vérifier une carte partenaire (cards/search)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Taknv1 {{takn}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/vnd.card.v3+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contracts/{{contract}}/cards/search?badgeId=<numéro de la carte>&firstName=Prénom&lastName=Nom&birthDate=1990-01-01",
+              "host": ["{{baseUrl}}"],
+              "path": ["contracts", "{{contract}}", "cards", "search"],
+              "query": [
+                {
+                  "key": "badgeId",
+                  "value": "<numéro de la carte>"
+                },
+                {
+                  "key": "firstName",
+                  "value": "Prénom"
+                },
+                {
+                  "key": "lastName",
+                  "value": "Nom"
+                },
+                {
+                  "key": "birthDate",
+                  "value": "1990-01-01"
+                }
+              ]
+            },
+            "description": "404 = carte inconnue, 500 sans les bons paramètres. Étape « numéro de carte » du site, jamais affichée à Lyon : aucun badge canBeOrdered ni aucune offre PARKING au 28/10/2026 (README § 6.2)."
+          },
+          "id": "cyclocity-04-08"
+        },
+        {
+          "name": "⚠️ Associer/activer une carte (POST cards, CardAction)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Taknv1 {{takn}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.card.v3+json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cardAction\": \"ASSOCIATION\",\n  \"cardType\": \"EXTERNAL\",\n  \"offerId\": 160,\n  \"cardId\": null,\n  \"cardNumber\": \"<numéro de la carte>\",\n  \"prefix\": \"\",\n  \"comment\": \"\",\n  \"printedRfidTicket\": false,\n  \"reversedCardNumber\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contracts/{{contract}}/cards",
+              "host": ["{{baseUrl}}"],
+              "path": ["contracts", "{{contract}}", "cards"]
+            },
+            "description": "Modèle CardAction lu dans l'APK (code mort côté app) : clé d'action = cardAction (ACTIVATE|ASSOCIATION|DEACTIVATE), + cardType (OWNER|EXTERNAL|TICKET), offerId, cardId, cardNumber, prefix, comment, printedRfidTicket (bool), reversedCardNumber (bool) -> reponse {cardState, cardErrorMessage}. Allow: DELETE, POST, OPTIONS ; seul vnd.card.v3+json evite le 415. Couple mobile -> 403 role.not.allowed ; couple WEB -> 404 (cards:read franchit le controle d'acces de POST). Refait le 30/10 avec le corps correct (cardAction+cardType:EXTERNAL+offerId:160+vrai n°) -> toujours 404 cards.exception.notfound.card : le mur est la resolution de la carte, pas la forme du corps. Le site ne l'expose nulle part a Lyon (README § 5.4 / § 6.2)."
+          },
+          "id": "cyclocity-04-09"
+        },
+        {
+          "name": "⚠️ Désactiver une carte (DELETE cards, CardAction)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Taknv1 {{takn}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.card.v3+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contracts/{{contract}}/cards",
+              "host": ["{{baseUrl}}"],
+              "path": ["contracts", "{{contract}}", "cards"]
+            },
+            "description": "DEACTIVATE. Contrairement à POST, DELETE est refusé même au couple WEB (403 role.not.allowed, 29/10/2026) : il exige un rôle cards d'écriture absent des trois couples publics ; le couple mobile aussi 403."
+          },
+          "id": "cyclocity-04-10"
         }
       ],
       "id": "cyclocity-04"
@@ -2657,6 +2900,11 @@
     {
       "key": "bikeId",
       "value": ""
+    },
+    {
+      "key": "proofDocumentId",
+      "value": "",
+      "description": "Rempli par « Téléverser un justificatif »"
     }
   ]
 }

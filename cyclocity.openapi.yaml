@@ -494,6 +494,27 @@ paths:
           content:
             application/vnd.cgau.v2+json:
               schema: { type: array, items: { type: object } }
+  /contracts/{contract}/locales/{locale}/proofs:
+    parameters:
+      - $ref: '#/components/parameters/contract'
+      - { name: locale, in: path, required: true, schema: { type: string, enum: [fr, en] }, example: fr }
+    get:
+      tags: [Contrat]
+      operationId: listProofs
+      summary: Justificatifs que les offres peuvent demander
+      description: |
+        Les offres portent les leurs dans `offer.proofs`, sous la même forme. Le site ne demande que ceux
+        dont la tranche d'âge contient l'âge du compte (`ageMin` ≤ âge < `ageMax`, borne absente = sans
+        limite). Correspondance des offres de Lyon et des justificatifs : README § 5.1 ; envoi des fichiers :
+        `POST /accounts/{accountId}/documents`.
+      x-status: live
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Proof' } }
   /contracts/{contract}/campaigns:
     parameters: [{ $ref: '#/components/parameters/contract' }]
     get:
@@ -703,6 +724,13 @@ paths:
               schema: { type: array, items: { $ref: '#/components/schemas/Bike' } }
             application/vnd.bikes.v4+json:
               schema: { type: array, items: { $ref: '#/components/schemas/Bike' } }
+            application/vnd.bikes.v5+json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Bike' }
+                description: >-
+                  `v5` répond aussi `200` (balayage du 29/10/2026 : `v1`–`v5` acceptés, `v6` → `406`).
+                  Ses ajouts éventuels sur `v4` n'ont pas été relevés ; aucun client officiel ne la demande.
   /contracts/{contract}/bikes/ratings:
     parameters: [{ $ref: '#/components/parameters/contract' }]
     get:
@@ -1111,6 +1139,97 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
 
+  /contracts/{contract}/accounts/{accountId}/documents:
+    parameters:
+      - $ref: '#/components/parameters/contract'
+      - $ref: '#/components/parameters/accountId'
+    post:
+      tags: [Compte]
+      operationId: uploadDocument
+      summary: Téléverser un justificatif
+      description: |
+        Appelé par le site dès qu'un fichier est choisi à l'étape « Justificatifs », avant l'achat, et
+        par l'app Android 3.6.1 (`qi/d.c`). Le `documentId` rendu part ensuite dans le process de
+        souscription : `proofs: [{ type: <typeReference>, documentId: "<[Format:java.util.UUID]>…" }]`
+        (README § 4.4 et § 6.2). Non exercé : relu dans le bundle du site et dans l'APK le 28/10/2026.
+      security: [{ Taknv1: [], Identity: [] }]
+      x-status: decompiled
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [attachment]
+              properties:
+                attachment: { type: string, format: binary, description: 'Un fichier ; le site accepte `application/pdf` et `image/*`.' }
+                lifeTime: { type: string, example: '44640000', description: Envoyé par le site seulement (`DEFAULT_DOCUMENT_LIFE_TIME`), unité non documentée. }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/ForbiddenIdentity' }
+        '200':
+          description: Le fichier enregistré
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: { documentId: { type: string, format: uuid } }
+    delete:
+      tags: [Compte]
+      operationId: deleteDocuments
+      summary: Retirer des justificatifs téléversés
+      description: Le site l'appelle quand on retire un fichier avant l'achat ; l'app Android 3.6.1 aussi (`qi/d.b`).
+      security: [{ Taknv1: [], Identity: [] }]
+      x-status: decompiled
+      requestBody:
+        required: true
+        content:
+          application/vnd.document.v3+json:
+            schema:
+              type: object
+              required: [documentIds]
+              properties: { documentIds: { type: array, items: { type: string, format: uuid } } }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/ForbiddenIdentity' }
+  /contracts/{contract}/accounts/{accountId}/mail:
+    parameters:
+      - $ref: '#/components/parameters/contract'
+      - $ref: '#/components/parameters/accountId'
+    post:
+      tags: [Compte]
+      operationId: sendSupportMessage
+      summary: Écrire au service client (« J'ai besoin d'aide »), pièces jointes comprises
+      description: |
+        Ouvert depuis un abonnement, un paiement ou un trajet, sur le site comme dans l'app Android 3.6.1
+        (`qi/e.a`, `Accept: multipart/form-data`). C'est aussi la voie pour envoyer un justificatif après
+        l'achat. Non exercé : relu dans le bundle du site et dans l'APK le 28/10/2026.
+      security: [{ Taknv1: [], Identity: [] }]
+      x-status: decompiled
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [complaintType, message]
+              properties:
+                complaintType: { type: string, enum: [SUBSCRIPTION, PAYMENT, TRIP, PARKING] }
+                message: { type: string }
+                attachments: { type: array, items: { type: string, format: binary }, description: Une part par fichier. }
+                subscriptionId: { type: string, format: uuid }
+                tripId: { type: string }
+                transactionId: { type: string, format: uuid }
+                date: { type: string }
+                amount: { type: string }
+                status: { type: string }
+                parkingId: { type: string, format: uuid, description: App Android seulement. }
+                parkingNumber: { type: integer, description: App Android seulement. }
+                parkingName: { type: string, description: App Android seulement. }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/ForbiddenIdentity' }
+
   # ---------------------------------------------------------------- Offres et badges
   /contracts/{contract}/offers:
     parameters: [{ $ref: '#/components/parameters/contract' }]
@@ -1288,6 +1407,70 @@ paths:
                     type: object
                     properties:
                       { id: { type: integer }, content: { type: string, contentEncoding: base64 } }
+
+  /contracts/{contract}/cards/search:
+    parameters: [{ $ref: '#/components/parameters/contract' }]
+    get:
+      tags: [Offres et badges]
+      operationId: searchPartnerCard
+      summary: Vérifier qu'une carte partenaire existe au nom du titulaire
+      description: |
+        Appelé par l'étape « numéro de carte » du site, qui n'apparaît que pour un badge `EXTERNAL`
+        commandable (`canBeOrdered`) ou une offre `PARKING` ; aucune offre de Lyon ne remplit ces
+        conditions au 28/10/2026. Si la carte existe, le process reçoit `semitanBadgeId`,
+        `semitanFirstname`, `semitanLastname` et `semitanBirthdate` (README § 6.2).
+      x-status: declared
+      parameters:
+        - { name: badgeId, in: query, required: true, description: Numéro imprimé sur la carte, schema: { type: string } }
+        - { name: firstName, in: query, required: true, schema: { type: string } }
+        - { name: lastName, in: query, required: true, schema: { type: string } }
+        - { name: birthDate, in: query, required: true, schema: { type: string, format: date } }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: La carte trouvée
+          content:
+            application/vnd.card.v3+json:
+              schema: { type: object }
+        '404': { description: Carte inconnue (le site affiche « carte inexistante ») }
+        '500': { description: Paramètres manquants ou mal formés }
+
+  /contracts/{contract}/cards:
+    parameters: [{ $ref: '#/components/parameters/contract' }]
+    post:
+      tags: [Offres et badges]
+      operationId: cardAction
+      summary: Activer / associer une carte partenaire (CardAction)
+      description: |
+        Route de `model/cards/CardAction` lue dans l'APK Android 3.6.1 (sans appelant : code mort côté
+        app), confirmée en direct par son en-tête `Allow: DELETE, POST, OPTIONS` (un `GET` renvoie `405`).
+        Seul `application/vnd.card.v3+json` est accepté (`v1`, `v2`, `cards.v3` → `415`).
+        Testé le 29/10/2026 avec un faux numéro : **couple client mobile → `403 role.not.allowed`**
+        (il n'a aucun rôle `cards`) ; **couple web → `404`** — son rôle `cards:read` (§ 3.1) suffit à
+        franchir le contrôle d'accès de `POST`, l'échec est métier (l'ASSOCIATION exige une vraie carte /
+        un contexte de compte). Le site ne l'expose nulle part à Lyon (§ 6.2). Forme du succès non observée.
+      x-status: warn-live
+      security: [{ Taknv1: [] }]
+      requestBody:
+        content:
+          application/vnd.card.v3+json:
+            schema: { $ref: '#/components/schemas/CardAction' }
+      responses:
+        '404': { description: Couple web (`cards:read`) — rôle accepté, échec métier (carte / compte introuvable avec un faux numéro) }
+        '403': { description: '`role.not.allowed` — couple mobile, sans rôle `cards`' }
+        '415': { description: Media-type autre que `application/vnd.card.v3+json` }
+    delete:
+      tags: [Offres et badges]
+      operationId: cardActionDelete
+      summary: Désactiver une carte partenaire (CardAction DEACTIVATE)
+      description: |
+        Même media-type et même modèle que `POST /cards`. Contrairement à `POST`, **`DELETE` est refusé
+        même au couple web** (`403 role.not.allowed`, testé le 29/10/2026) : il exige un rôle `cards`
+        d'écriture absent des trois couples publics ; le couple mobile aussi `403`.
+      x-status: live
+      security: [{ Taknv1: [] }]
+      responses:
+        '403': { description: '`role.not.allowed` — aucun couple public (mobile ni web) ne porte le rôle d''écriture `cards`' }
 
   # ---------------------------------------------------------------- Abonnements
   /contracts/{contract}/accounts/{accountId}/subscriptions:
@@ -2257,6 +2440,37 @@ components:
       description: Page HTML Tomcat, header `Identity` absent/invalide ou `accountId` invalide.
 
   schemas:
+    CardAction:
+      type: object
+      description: >-
+        Corps de `POST`/`DELETE /cards` (modèle `model/cards/CardAction` de l'APK Android 3.6.1, sans
+        appelant côté app ; noms des champs = annotations Jackson). Le couple web (`cards:read`) franchit
+        le contrôle d'accès de `POST`, mais renvoie `404 cards.exception.notfound.card`. Refait le 30/10/2026
+        avec le corps correct (`cardAction`, `cardType: EXTERNAL`, `offerId: 160`, vrai numéro TCL) → toujours
+        le même `404` : le mur est la **résolution de la carte** (lookup Semitan absent à Lyon — cf. `cards/search`
+        → `502` — et/ou pas de contexte compte sans `Identity`), pas la forme du corps. Succès non observé.
+      properties:
+        cardAction:
+          type: string
+          enum: [ACTIVATE, DEACTIVATE, ASSOCIATION]
+        cardType:
+          type: string
+          enum: [OWNER, EXTERNAL, TICKET]
+        offerId: { type: integer, format: int64 }
+        cardId: { type: integer, format: int64 }
+        cardNumber: { type: string }
+        prefix: { type: string }
+        comment: { type: string }
+        printedRfidTicket: { type: boolean }
+        reversedCardNumber: { type: boolean }
+
+    CardActionResult:
+      type: object
+      description: Réponse de `POST`/`DELETE /cards` (modèle `CardActionResult` de l'APK). Non observée en vrai.
+      properties:
+        cardState: { type: integer }
+        cardErrorMessage: { type: string, nullable: true }
+
     Error:
       type: object
       description: Format d'erreur standard, doublé du header `Bloot-Error-Code`.
@@ -2589,6 +2803,19 @@ components:
         canBeOrdered: { type: boolean }
         proofIds: { type: array, items: { type: integer } }
 
+    Proof:
+      type: object
+      properties:
+        id: { type: integer }
+        contractCode: { type: string }
+        name: { type: string }
+        tacitRenewal: { type: boolean }
+        ageMin: { type: integer }
+        ageMax: { type: integer, description: Borne exclue. }
+        blocking: { type: boolean }
+        modelId: { type: string, format: uuid, description: 'Modèle à remplir, lu par `GET /assets/{modelId}`.' }
+        typeReference: { type: [string, 'null'], description: 'Renvoyé tel quel en `proofs[].type` du process.' }
+
     Offer:
       type: object
       description: '`Accept: application/vnd.offer.v2+json` : prix en centimes ; `duration` en jours (`IMMEDIATE`) ou en mois (`MONTHLY`)'
@@ -2609,7 +2836,7 @@ components:
         platforms: { type: array, items: { type: string, enum: [MOBILE, WEB, PRIVATE, TERMINAL] } }
         paymentMethods: { type: array, items: { type: string } }
         paymentFrequency: { type: string, enum: [IMMEDIATE, MONTHLY] }
-        proofs: { type: array, items: { type: object } }
+        proofs: { type: array, items: { $ref: '#/components/schemas/Proof' } }
         renewal:
           type: object
           properties:
@@ -2995,7 +3222,10 @@ components:
             ]
         parameters:
           type: object
-          description: Paramètres obligatoires selon le type (§ 6) ; identifiants sérialisés avec préfixe de type (§ 4.4).
+          description: >-
+            Paramètres obligatoires selon le type (§ 6) ; identifiants sérialisés avec préfixe de type (§ 4.4).
+            Une souscription du site peut aussi porter `orderCard`, `proofs: [{ type, documentId }]`,
+            `badgeDisplayRef` et `semitanBadgeId` / `semitanFirstname` / `semitanLastname` / `semitanBirthdate` (README § 6.2).
           additionalProperties: true
 
     ProcessResult:
