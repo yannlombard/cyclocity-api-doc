@@ -2114,6 +2114,16 @@ paths:
                     bikeDefectDeclaredBlocked: true
                     platform: MOBILE
                     contract: lyon
+              suppressionCompte:
+                summary: ACCOUNT_UNSUBSCRIBE (supprimer le compte, § 6.5 ; exercé le 29/10/2026 — définitif)
+                description: >-
+                  Depuis « Mon compte » de l'app Android 3.6.1, la seule plateforme ; depuis son selfcare,
+                  `processOrigin: Selfcare` en plus. `inError` vrai = refus (paiement engagé ou équipement
+                  en location), le compte reste intact.
+                value:
+                  type: ACCOUNT_UNSUBSCRIBE
+                  parameters:
+                    platform: MOBILE
       responses:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/ForbiddenIdentity' }

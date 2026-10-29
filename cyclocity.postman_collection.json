@@ -2456,6 +2456,42 @@
           "id": "cyclocity-08-00c"
         },
         {
+          "name": "📱 ⛔ Supprimer le compte (ACCOUNT_UNSUBSCRIBE, définitif)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Taknv1 {{takn}}"
+              },
+              {
+                "key": "Identity",
+                "value": "{{identity}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.processes.v2+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contracts/{{contract}}/accounts/{{accountId}}/processes",
+              "host": ["{{baseUrl}}"],
+              "path": ["contracts", "{{contract}}", "accounts", "{{accountId}}", "processes"]
+            },
+            "description": "ACTION RÉELLE ET DÉFINITIVE : supprime le compte Vélo'v (abonnements clos, points perdus, réclamations closes). Jamais sur un compte qui sert. Paramètres de « Mon compte » de l'app Android 3.6.1 ; depuis son selfcare, processOrigin: Selfcare en plus. inError vrai = refus (paiement engagé ou équipement en location), compte intact. Exercé le 29/10/2026 depuis Lové : 200, inError false, email de confirmation (§ 6.5).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"ACCOUNT_UNSUBSCRIBE\",\n  \"parameters\": {\n    \"platform\": \"MOBILE\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "id": "cyclocity-08-00d"
+        },
+        {
           "name": "🌐 Reprendre / confirmer un process (toResume)",
           "request": {
             "method": "PATCH",

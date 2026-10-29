@@ -2165,6 +2165,37 @@ Même réserve que § 6.3 : lu dans le binaire Android 3.3.10 (`fm/a` pour les p
 
 Les motifs n'ont ni `code` ni `order` dans cette réponse : l'ordre des groupes est celui du numéro de leur `label`, celui des motifs celui de la réponse. Un appel réel ouvre un signalement chez l'opérateur, et `bikeDefectDeclaredBlocked: true` peut retirer un vélo du service : ne pas l'essayer sur un vélo en bon état.
 
+### 6.5 Supprimer le compte : `ACCOUNT_UNSUBSCRIBE` (📱)
+
+« Supprimer le compte » dans « Mon compte » de l'app Android, et « Supprimer son compte » dans son selfcare (§ 7.4). La suppression est en **libre-service** : aucun passage par le service client, sauf si l'opérateur refuse.
+
+```http
+POST /contracts/lyon/accounts/{accountId}/processes
+Content-Type: application/vnd.processes.v2+json
+Authorization: Taknv1 {clientToken}
+Identity: {accessToken}
+```
+
+```json
+{
+  "type": "ACCOUNT_UNSUBSCRIBE",
+  "parameters": {
+    "platform": "MOBILE"
+  }
+}
+```
+
+| Paramètre       | Valeur                                                                                                |
+| --------------- | ----------------------------------------------------------------------------------------------------- |
+| `platform`      | `MOBILE`, ajouté par le dépôt (`pg/q.f`)                                                              |
+| `processOrigin` | `Selfcare`, **seulement** depuis le selfcare (`aj/f`, `Process$a.P()`) ; absent depuis « Mon compte » |
+
+Lu dans l'APK 3.6.1 le 29/10/2026 (`aj/f`, `pg/q.f`, `AccountFragment.Q8`, `selfcare/unsubscribe/SelfCareUnsubscribeFragment`). Pas de `returns`, pas d'`Accept`. L'app ne lit de la réponse (`ProcessResult`, § 6) que `inError` : vrai, elle lève `AccountsException.NotUnsubscribed` et affiche « Nous n'avons pas pu vous désinscrire. Il semble qu'il vous reste des paiements engagés ou des équipements en cours de location », avec un renvoi au service client « pour les clôtures pour raisons exceptionnelles ». Faux, elle déconnecte et revient à l'accueil.
+
+Avant l'appel, une seule confirmation oui / non : « Voulez-vous vraiment vous désinscrire, clôturer vos abonnements et supprimer toutes vos informations de nos systèmes ? », avec en rouge « la procédure est définitive. Elle clôture vos services et éventuelles réclamations en cours ».
+
+✅ **Exercé le 29/10/2026** depuis Lové, avec ces paramètres, sur six comptes jetables : `200` en 1,2 à 1,6 s, `inError: false`, puis un email « Confirmation de la désinscription utilisateur - Vélov » : « vos données personnelles ont été purgées, tous vos abonnements sont clôturés, et votre compte est supprimé ». La forme de l'`error` d'un refus reste inconnue (aucun compte n'avait de paiement dû ni de vélo en location).
+
 ---
 
 ## 7. Séquences observées dans l'app officielle
@@ -2277,7 +2308,7 @@ Le cinquième onglet de l'app porte ce nom, mais ce n'est pas un service client 
 | **Mes abonnements**     | liste par type                                | `GET /subscriptions?noStatus=CLOSED&periods=…&type=LT\|UB\|BATTERY\|PARKING` (un appel par type), puis `GET /sales?infoType=PERIOD&natures=SUBSCRIPTION&status=PAID` -> `GET /periods?periodIds={ids}` pour le justificatif        |
 | **Mon support d'accès** | remplacement / perte                          | `GET /accounts/{id}/cgau`, `/cgau/VLS/valid`, `/accounts/{id}/offers`, `/offers/{offerId}/supplements?isValid=true`, puis le devis `POST /offers/{offerId}/supplements/badges/{badgeId}/packages` (§ 6.1)                          |
 | **Mes paiements**       | « mettre à jour ma carte de paiement »        | `GET /balance`, `/transactions/{txId}`, `/subscriptions/{subId}` ; l'écran prévient d'une pré-autorisation de 150 € puis redirige vers le prestataire — la suite (process `REGISTER_PAYMENT_METHOD`, § 6) n'a pas été capturée ici |
-| **Mon compte**          | « supprimer son compte »                      | process `ACCOUNT_UNSUBSCRIBE` (§ 6) — **non capturé**, l'écran de confirmation n'a pas été validé                                                                                                                                  |
+| **Mon compte**          | « supprimer son compte »                      | process `ACCOUNT_UNSUBSCRIBE` (§ 6.5), lu dans l'APK, exercé depuis Lové le 29/10/2026                                                                                                                                             |
 | **D'autres demandes**   | —                                             | **non capturé** ; probablement `POST /accounts/{id}/mail` (§ 5.3)                                                                                                                                                                  |
 
 Deux points à retenir :
