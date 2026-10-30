@@ -2736,6 +2736,42 @@
           "id": "cyclocity-08-00d"
         },
         {
+          "name": "📱 ⚠️ Changer de support (CHANGE_BADGE)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Taknv1 {{takn}}"
+              },
+              {
+                "key": "Identity",
+                "value": "{{identity}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.processes.v2+json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contracts/{{contract}}/accounts/{{accountId}}/processes",
+              "host": ["{{baseUrl}}"],
+              "path": ["contracts", "{{contract}}", "accounts", "{{accountId}}", "processes"]
+            },
+            "description": "ACTION RÉELLE : change le support d'accès de l'abonnement et débite le amountReedit du badge sur la carte enregistrée s'il dépasse zéro (Carte Vélo'v OWNER : 5 €, envoyée à l'adresse du compte). Paramètres de fl/a.h dans l'app Android 3.6.1 ; depuis l'aide de l'app (carte perdue), processOrigin: Selfcare en plus. cgauVersion = valeur de « CGU valides (VLS) ». Une carte partenaire EXTERNAL reste en BADGE_WAITING_ASSOCIATION jusqu'à son passage à une borne (README § 5.4). Non exercé.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"CHANGE_BADGE\",\n  \"parameters\": {\n    \"platform\": \"MOBILE\",\n    \"offerId\": \"<[Format : java.lang.Long]>75171\",\n    \"cgauVersion\": \"003.002\",\n    \"badgeId\": \"<[Format : java.lang.Long]>40\",\n    \"badgeType\": \"EXTERNAL\",\n    \"subscriptionId\": \"<[Format : java.util.UUID]>{{subscriptionId}}\",\n    \"supplements\": [],\n    \"proofs\": [],\n    \"optionIds\": [],\n    \"optInPartner\": false,\n    \"optInSystem\": false,\n    \"tacitResubscription\": true,\n    \"browserJavaEnabled\": true,\n    \"browserTimeZone\": -60,\n    \"browserColorDepth\": 32,\n    \"browserScreenWidth\": 402,\n    \"browserScreenHeight\": 874\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "id": "cyclocity-08-00e"
+        },
+        {
           "name": "🌐 Reprendre / confirmer un process (toResume)",
           "request": {
             "method": "PATCH",

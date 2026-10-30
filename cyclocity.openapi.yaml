@@ -2311,6 +2311,34 @@ paths:
                   type: ACCOUNT_UNSUBSCRIBE
                   parameters:
                     platform: MOBILE
+              changementSupport:
+                summary: CHANGE_BADGE (changer de support ou remplacer une carte perdue ; lu dans l'APK, jamais exercé)
+                description: >-
+                  Paramètres de `fl/a.h` dans l'app Android 3.6.1. `processOrigin: Selfcare` n'est ajouté que
+                  depuis l'aide de l'app (carte perdue). Prix = `amountReedit` du badge, débité sur la carte
+                  enregistrée s'il dépasse zéro. Une carte partenaire reste en `BADGE_WAITING_ASSOCIATION`
+                  jusqu'à son passage à une borne.
+                value:
+                  type: CHANGE_BADGE
+                  parameters:
+                    platform: MOBILE
+                    offerId: '<[Format : java.lang.Long]>75171'
+                    cgauVersion: '003.002'
+                    badgeId: '<[Format : java.lang.Long]>40'
+                    badgeType: EXTERNAL
+                    subscriptionId: '<[Format : java.util.UUID]>00000000-0000-0000-0000-000000000000'
+                    supplements: []
+                    proofs: []
+                    optionIds: []
+                    optInPartner: false
+                    optInSystem: false
+                    tacitResubscription: true
+                    processOrigin: Selfcare
+                    browserJavaEnabled: true
+                    browserTimeZone: -60
+                    browserColorDepth: 32
+                    browserScreenWidth: 402
+                    browserScreenHeight: 874
       responses:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/ForbiddenIdentity' }
