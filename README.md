@@ -2228,6 +2228,17 @@ Avant l'appel, une seule confirmation oui / non : « Voulez-vous vraiment vous d
 
 ✅ **Exercé le 29/10/2026** depuis Lové, avec ces paramètres, sur six comptes jetables : `200` en 1,2 à 1,6 s, `inError: false`, puis un email « Confirmation de la désinscription utilisateur - Vélov » : « vos données personnelles ont été purgées, tous vos abonnements sont clôturés, et votre compte est supprimé ». La forme de l'`error` d'un refus reste inconnue (aucun compte n'avait de paiement dû ni de vélo en location).
 
+**Savoir après coup si le compte existe encore** — quand la réponse au process s'est perdue. Relevé le 30/10/2026 sur un compte jetable, avec l'access token encore valable :
+
+| Requête | Compte supprimé | Session Keycloak fermée, compte présent |
+| --- | --- | --- |
+| `GET /contracts/lyon/accounts/{accountId}` (§ 5.3) | `403`, page HTML sans `code` | `200` |
+| refresh (`grant_type=refresh_token`, § 3.2) | `400 invalid_grant` « Session not active » | idem |
+| `GET …/protocol/openid-connect/userinfo` | `401 invalid_token` « user_session_not_found » | idem |
+| `GET /realms/vls-default/account` | `401` | idem |
+
+Seule la lecture du compte tranche : l'API lit le jeton sans consulter la session Keycloak, que la suppression efface comme une déconnexion. Un access token expiré donne le même `403` (§ 4.2) : ne relire qu'avec un jeton encore valable.
+
 ---
 
 ## 7. Séquences observées dans l'app officielle

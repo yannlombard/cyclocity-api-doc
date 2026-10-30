@@ -729,6 +729,7 @@
           "name": "✅ Profil",
           "request": {
             "method": "GET",
+            "description": "Compte supprimé : `403`, page HTML sans `code` ; session Keycloak fermée, compte présent : `200`. De quoi savoir après coup si ACCOUNT_UNSUBSCRIBE a abouti (README § 6.5, relevé du 30/10/2026). Un access token expiré donne aussi `403`.",
             "header": [
               {
                 "key": "Authorization",

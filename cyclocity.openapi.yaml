@@ -851,6 +851,10 @@ paths:
       tags: [Compte]
       operationId: getAccount
       summary: Profil complet
+      description: >-
+        Répond `403` (page HTML, sans `code`) pour un compte supprimé, quand une session Keycloak
+        simplement fermée garde `200` : de quoi savoir après coup si `ACCOUNT_UNSUBSCRIBE` a abouti
+        (README § 6.5, relevé du 30/10/2026). Un access token expiré donne le même `403`.
       security: [{ Taknv1: [], Identity: [] }]
       x-status: observed
       responses:
@@ -2437,7 +2441,7 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
     ForbiddenIdentity:
-      description: Page HTML Tomcat, header `Identity` absent/invalide ou `accountId` invalide.
+      description: Page HTML Tomcat, header `Identity` absent/invalide ou expiré, `accountId` invalide, ou compte supprimé (README § 6.5).
 
   schemas:
     CardAction:
