@@ -1332,7 +1332,7 @@ Les en-têtes ci-dessus sont ceux de l'app Android 3.6.1 (`ug/s`, lue le 23/10/2
 | `NOT_CONNECTED`    | « Aucun vélo n'est connecté à la borne… »                            |
 | tout autre état    | « La libération du vélo a échoué pour une raison inconnue… »         |
 
-**Refus métier** : le corps d'erreur standard (§ 4.2) porte un `code` que l'app traduit (`ci/g`, tag `ApiErrorCodes`). Aucun n'a été capturé : leur statut HTTP n'est pas connu.
+**Refus métier** : le corps d'erreur standard (§ 4.2) porte un `code` que l'app traduit (`ci/g`, tag `ApiErrorCodes`). Un seul a été capturé (`trips.exception.invalid.customer.credit`, `403`, ci-dessous) : le statut HTTP des autres n'est pas connu.
 
 | `code`                                            | Message de l'app                                                |
 | ------------------------------------------------- | --------------------------------------------------------------- |
@@ -1342,6 +1342,8 @@ Les en-têtes ci-dessus sont ceux de l'app Android 3.6.1 (`ug/s`, lue le 23/10/2
 | `kiwi.exception.customer.paymentmode.not.valid`   | « Veuillez mettre à jour votre mode de paiement. »              |
 | `kiwi.exception.no.release.bike`                  | « Problème technique lors de la libération de vélo. »           |
 | `trips.exception.invalid.customer.credit`         | reconnu, sans message propre (message générique)                |
+
+**Un ticket « 1 trajet » qui a servi est refusé par `403 trips.exception.invalid.customer.credit`**, mais rien d'autre ne le dit (observé le 04/11/2026). Un ticket de l'offre 75171 (« Vélo'v 1 trajet ») acheté depuis l'app, un trajet terminé dans la foulée ; le lendemain, période encore ouverte : `statuses: []`, `isLocked: false`, et `GET /subscriptions?periods=CURRENT&isLocked=false` le rend toujours. Seul `GET /trips` (un trajet `FINISHED` dont le `subscriptionId` est celui du ticket) permet de le savoir avant d'appeler la libération.
 
 Un code absent de cette table a été observé le 06/10/2026 : `404 {"code":"trips.exception.bookings.already.reserved","message":"Bike reserved by another user"}`, en libérant un vélo réservé par un autre usager (`AVAILABLE` et `isReserved: true`, § 5.9). L'app Android l'affiche avec le message générique, et la 3.6.1 n'en a toujours pas de propre.
 
