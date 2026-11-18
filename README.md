@@ -176,7 +176,7 @@ Deux systèmes de tokens **indépendants et cumulatifs** :
 | Token                                                | Émetteur                                                    | Identifie             | Header                          | Durée de vie observée                            |
 | ---------------------------------------------------- | ----------------------------------------------------------- | --------------------- | ------------------------------- | ------------------------------------------------ |
 | **Client token** (JWT `RS256`, compressé `zip: DEF`) | `POST api.cyclocity.fr/auth/environments/PRD/client_tokens` | l'application cliente | `Authorization: Taknv1 {token}` | **2 h** (`exp` - émission), renouvelable         |
-| **Access token** Keycloak (JWT)                      | `iam.cyclocity.fr`                                          | l'utilisateur         | `Identity: {token}`             | `expires_in: 900` -> **15 min**                  |
+| **Access token** Keycloak (JWT)                      | `iam.cyclocity.fr`                                          | l'utilisateur         | `Identity: {token}`             | `expires_in: 1800` -> **30 min** (900 avant le 18/11/2026) |
 | **Refresh token** Keycloak (JWT `HS512`)             | `iam.cyclocity.fr`                                          | -                     | (interne)                       | `refresh_expires_in ~2 590 000` -> **~30 jours** |
 
 - Endpoints **publics** (contrat, stations, offres, FAQ, vélos...) -> `Authorization: Taknv1` suffit.
@@ -288,7 +288,7 @@ Découverte OIDC : `https://iam.cyclocity.fr/realms/vls-default/.well-known/open
 | `vls-ios-lyon` / `vls-android-lyon` | app iOS / app Android (VLSKit : `scope=openid email`) | `https://velov.grandlyon.com/openid_connect_login` (l'app intercepte la redirection)                                                        | scope `openid`, `ui_locales=fr`, `response_type=code`, PKCE S256, `nonce` |
 | `vls-web-lyon`                      | site web                                              | `https://velov.grandlyon.com/openid_connect_login` (`response_mode=fragment`) et `.../assets/silent-check-sso.html` (`prompt=none`, iframe) | scope `openid`, PKCE S256                                                 |
 
-Rôles realm présents dans l'access token : `contract-lyon-user`, `default-roles-vls-default`, `offline_access`, `uma_authorization`. Claims utiles : `sub` = **email** de l'utilisateur, `preferred_username` = email, `email_verified`, `locale`, `sid`, `azp` (client), `allowed-origins` (`https://velov.grandlyon.com`, `https://www.velov.grandlyon.com`, `https://velov.cyclocity.fr`).
+Rôles realm présents dans l'access token : `contract-lyon-user`, `default-roles-vls-default`, `offline_access`, `uma_authorization`. Claims utiles : `sub` = **email** de l'utilisateur, `preferred_username` = email, `email_verified`, `locale`, `sid`, `azp` (client), `allowed-origins` (`https://velov.grandlyon.com`, `https://www.velov.grandlyon.com`, `https://velov.cyclocity.fr`). **Ni l'access token ni l'id token ne portent de claim `email`** (relevé du 18/11/2026) : l'adresse s'y lit dans `sub`/`preferred_username`, qui sont en fait l'**identifiant** Keycloak. Pour certains comptes (origine non établie), cet identifiant peut être un nom d'utilisateur sans `@` (observé en production le 18/11/2026), alors que le formulaire accepte l'adresse ; `GET /realms/vls-default/account` (access token en `Authorization: Bearer`, `Accept: application/json`) rend alors l'adresse dans son champ `email`, à côté de `username`.
 
 #### Flow de connexion (tel que le réalise l'app mobile, en « headless »)
 
@@ -583,6 +583,7 @@ Un `403` avec page HTML Tomcat signale un `Identity` manquant/invalide ; un `401
 | `401` `auth.error.token.expiredRefreshToken` sur `POST /auth/access_tokens`                       | Le refresh token **client** a expiré                                                                       | Refaire `POST /auth/environments/PRD/client_tokens` avec le couple `code`/`key`                               |
 | `401` `auth.error.token.badRefreshToken`                                                          | Un refresh token **Keycloak** a été envoyé à `/auth/access_tokens`                                         | Les deux systèmes de tokens sont indépendants : refresh Keycloak sur `iam.cyclocity.fr/.../token` (§ 3.2)     |
 | `403` page HTML Tomcat sur `/accounts/...`                                                        | Header `Identity` absent, access token Keycloak expiré (15 min) ou `accountId` invalide (`null`)           | Rafraîchir l'access token (`grant_type=refresh_token`) et vérifier l'`accountId` (`GET /accounts/{email}/id`) |
+| `400` `accounts.exception.invalid.path.param` sur `/accounts/{email}/id` | La valeur n'a pas de `@` (un identifiant Keycloak qui n'est pas une adresse) ; avec un `@`, même mal formée, la réponse est `404 accounts.exception.notfound.contract.account` (sondé le 18/11/2026) | Lire l'adresse dans `GET /realms/vls-default/account` (champ `email`) |
 | `403` `{"message":"Invalid Takn"}`                                                                | Un JWT Keycloak a été mis dans `Authorization`                                                             | `Authorization` reçoit le client token (`Taknv1 ...`), `Identity` reçoit l'access token Keycloak              |
 | `403` `role.not.allowed`                                                                          | Aucun `Authorization` sur un endpoint qui l'exige                                                          | Ajouter `Authorization: Taknv1 ...`                                                                           |
 | `403` (ou coupure TLS) sur `/bikes`, `/stations`... depuis un script                              | `User-Agent: node` (défaut de Node.js/vitest) bloqué par le WAF                                            | Envoyer n'importe quel autre `User-Agent` (§ 4.3)                                                             |
@@ -2761,7 +2762,7 @@ Keycloak applique une politique _1 compte = 1 appareil connecté_, identifiée p
 
 **Combien de temps les tokens durent-ils ?**
 
-Client token : 2 h (renouvelable avec son `refreshToken`). Access token Keycloak : 15 min. Refresh token Keycloak : ~30 jours. Détail § 3.
+Client token : 2 h (renouvelable avec son `refreshToken`). Access token Keycloak : 30 min (15 min avant le 18/11/2026). Refresh token Keycloak : ~30 jours. Détail § 3.
 
 **Puis-je déverrouiller un vélo depuis mon propre programme ?**
 
